@@ -153,6 +153,19 @@ Tests must validate observable behavior.
 
 ## Workflow
 
+- Work only in the existing primary checkout at
+  `/Users/pabloblanco/GitHub/rickandmorty`. Never create or use Git worktrees,
+  temporary worktrees, or separate checkouts for implementation.
+- Before each PR, inspect Git status and the active branch. Preserve all user
+  changes; never discard, overwrite, or stash them without explicit approval.
+- Switch to local main, fetch origin, pull origin/main with `--ff-only`, then
+  create a new feature branch from updated main. Stop if switching is blocked;
+  do not work around it with another checkout or by changing the user's files.
+- Do not implement on main or reuse an earlier PR branch. Do not force-push or
+  delete user branches without approval. Commit and push the feature branch,
+  open a PR targeting main, and leave the primary checkout on that feature branch.
+- PR #3 uses `feature/networking-data-layer`. Its architecture is approved;
+  future significant architecture changes still require explanation and approval.
 - Inspect existing code before making changes.
 - Preserve unrelated user changes.
 - Explain significant architectural trade-offs.
@@ -175,12 +188,12 @@ Prefer a simpler, defensible solution when two implementations satisfy the same 
 - The package currently supports iOS 17+ only. Do not add macOS support without
   approval. Keep Domain and Data free of UIKit, AppKit, and SwiftUI imports so
   their responsibilities remain suitable for future platform reuse.
-- PR #1 contains only foundation work. Networking, DTOs, mapping, caching,
-  search, pagination, refresh, image loading, and detail screens require later
-  approved work. Future-feature rules above do not authorize implementation.
-- Create directories when they contain needed implementation. SwiftPM's current
-  Data source and Data/Presentation test source files exist only to keep their
-  otherwise empty targets discoverable; do not add meaningless tests or APIs.
+- PR #3 adds paginated character list/search networking, DTO mapping, the concrete
+  repository and deterministic Data tests. Caching, images, ViewModels, UI search,
+  refresh and a detail endpoint remain outside this PR's scope.
+- Create directories when they contain needed implementation. Presentation's
+  import-only test source keeps its otherwise empty target discoverable; do not
+  add meaningless tests or APIs.
 - `RickAndMortyApp` directly composes `CharactersView`. Add concrete dependencies
   through constructors when real implementations exist; do not create fake
   production repositories to disguise unfinished functionality.
@@ -271,8 +284,41 @@ test for the whole package. Keep UI tests outside the main CI workflow.
 CI selects Xcode 26.4.1 on macos-26. Disclose local/CI toolchain differences and
 inspect the workflow for the PR's current commit before reporting CI success.
 The private repository's GitHub-hosted execution is currently blocked by account
-spending limits. Do not manually rerun workflows or change repository visibility
-to bypass that blocker. Validate locally and report the CI limitation accurately.
+spending limits. Do not run hosted CI or change repository visibility to bypass
+that blocker. Use `[skip ci]` on commits while this restriction applies so opening
+a PR does not start the pull_request workflow. Validate locally and report that
+CI was deliberately not run; skipped checks are not passing checks.
+
+## Networking implementation decisions
+
+- Keep HTTPTransport and its URLSession adapter internal to Data. HTTPClient is
+  concrete with a generic Decodable & Sendable result; do not add a second client
+  protocol, endpoint framework, or type erasure without a concrete requirement.
+- Construct a decoder for each response. Keep requests and mapping nonisolated;
+  do not introduce actors or detached tasks for immutable networking state.
+- The default URLSession is ephemeral, has no URLCache, and ignores local cached
+  data. Every request independently sets reloadIgnoringLocalCacheData and the
+  Cache-Control: no-cache header, including when a session is injected.
+- Until the actor TTL cache exists, both FetchPolicy cases always use networking
+  with identical HTTP-cache bypass. Neither policy reads or writes an application
+  cache. Do not imply cacheFirst currently provides caching.
+- Check cancellation before requests, after transport completion, and before
+  returning mapped results. Normalize URLSession's cancelled URLError and preserve
+  CancellationError. Test late successful completion using controlled continuations.
+- Translate infrastructure failures to CharacterRepositoryError: invalidRequest
+  for invalid page/base URL; networkUnavailable for connection loss, unavailable
+  connections and timeouts; serviceFailure for HTTP rejection or other URLSession
+  failures such as TLS rejection; invalidData for non-HTTP, decode or mapping
+  failures; unexpected only for unrecognized non-URLSession transport errors.
+- Only a nonempty filtered search on page 1 whose 404 JSON body identifies
+  "There is nothing here" maps to an empty page. Other endpoints, pages, statuses
+  and unrecognized/malformed error bodies remain service failures.
+- Trim surrounding search whitespace, preserve the remaining query text, and use
+  URLComponents/URLQueryItem for encoding. Map pagination metadata into nextPage;
+  never issue requests directly to an API-provided next URL.
+- The public repository initializer accepts the API base URL and an optional
+  URLSession. Its internal client initializer supports transport-spy tests. The
+  static app shell does not start requests or construct unused dependencies.
 
 Swift Testing defaults are described in Apple's
 [parallelization documentation](https://developer.apple.com/documentation/testing/parallelization)

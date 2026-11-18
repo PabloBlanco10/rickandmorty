@@ -3,9 +3,9 @@
 An iOS technical assessment focused on maintainable architecture, concurrency
 safety, testability, and accessibility.
 
-**Current status:** project foundation with a static character screen and Light/Dark
-previews. API integration, search, pagination, caching, refresh, and detail screens
-are planned for later PRs.
+**Current status:** Data implements paginated character list/search requests and
+domain mapping. The SwiftUI screen remains static, with Light/Dark previews.
+UI search, pagination interaction, caching, refresh, images and detail are deferred.
 
 ## Stack
 
@@ -18,7 +18,7 @@ are planned for later PRs.
 | Target | Responsibility | Dependencies |
 | --- | --- | --- |
 | Domain | Entities, repository contracts, use cases, policies | Foundation |
-| Data | Future networking, mapping, repositories, caching | Domain |
+| Data | Networking, DTOs, mapping, repository implementation | Domain |
 | Presentation | SwiftUI views and presentation state | Domain |
 | App | Entry point and dependency composition | Domain, Data, Presentation |
 
@@ -36,13 +36,15 @@ on an iOS Simulator. Appearance follows the system automatically.
 
 Select the `RickAndMorty` app scheme and press Cmd+U on an iOS Simulator to
 execute all three package test targets. Domain tests cover use-case delegation,
-fetch policies, results, errors, and cancellation. Data and Presentation targets contain no behavioral
-tests yet.
+fetch policies, results, errors, and cancellation. Data tests cover requests,
+decoding, mapping, error handling and cancellation with controlled transports;
+they make no HTTP calls or arbitrary sleeps. Presentation has no behavioral tests yet.
 
 With the pinned development tools on PATH, run `bash Scripts/check-quality.sh`.
 Local Xcode builds also run optional SwiftLint warnings; a missing tool does not block compilation.
 The [CI workflow](.github/workflows/ci.yml) checks formatting, lint, the app build,
-and package tests using Xcode 26.4.1. See the PR checks for actual workflow results.
+and package tests using Xcode 26.4.1. Hosted CI is deliberately skipped while account
+spending restrictions apply; validation is local and no CI success is claimed.
 Commands and engineering conventions are in [AGENTS.md](AGENTS.md).
 
 ## Key decisions
@@ -53,5 +55,10 @@ Commands and engineering conventions are in [AGENTS.md](AGENTS.md).
 - A minimal static view needs no ViewModel or fake repository.
 - Full-screen `ViewState` stays separate from future refresh/pagination state.
   Typed presentation error mapping is deferred until concrete failures exist.
-- Minimal source files keep future Data/test targets discoverable by SwiftPM
-  without adding artificial APIs or placeholder tests.
+- An internal transport protocol makes the concrete generic HTTP client testable
+  without global mocks or additional networking abstractions.
+- The default URLSession disables HTTP caching; every request also bypasses local
+  HTTP cache and sends `Cache-Control: no-cache`. Both fetch policies currently
+  use networking. The actor-based TTL cache will be implemented separately.
+- Domain repository errors hide HTTP/decoding details; cancellation remains
+  `CancellationError`. Detail requests are deferred until there is a caller.
