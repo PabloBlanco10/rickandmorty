@@ -252,10 +252,11 @@ xcodebuild -project RickAndMorty/RickAndMorty.xcodeproj \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-Run all three test targets from `Packages/RickAndMortyKit`:
+Run all three package test targets through the main app scheme from the repository root:
 
 ```bash
-xcodebuild -scheme RickAndMortyKit-Package \
+xcodebuild -project RickAndMorty/RickAndMorty.xcodeproj \
+  -scheme RickAndMorty \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4' \
   CODE_SIGNING_ALLOWED=NO test
 ```
@@ -272,8 +273,12 @@ to bypass that blocker. Validate locally and report the CI limitation accurately
 Swift Testing defaults are described in Apple's
 [parallelization documentation](https://developer.apple.com/documentation/testing/parallelization)
 and [WWDC explanation of randomized ordering](https://developer.apple.com/videos/play/wwdc2024/10195/).
-The generated RickAndMortyKit-Package scheme selects all three test targets without
-serialization overrides; no custom test plan is necessary. Inspect generated
+The shared RickAndMorty app scheme selects all three package test targets without
+serialization overrides; no custom test plan is necessary. Keep the existing package
+folder registered as a project file reference so Xcode exposes its test targets.
+Scheme test references use the package-relative container and target names as
+blueprint identifiers and buildable names. Test-only Build action entries ensure
+the package tests build without adding them to Run or Archive actions. Inspect generated
 xctestrun settings and result logs when validating this configuration. A changed
 start order exercises order independence, not exhaustive race coverage or a
 guarantee that every run produces a different order.

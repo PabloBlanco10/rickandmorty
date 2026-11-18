@@ -13,6 +13,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+        A10000000000000000000030 /* RickAndMortyKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = ../Packages/RickAndMortyKit; sourceTree = "<group>"; };
 		DBF6C4C230ADDDB10015D9A7 /* RickAndMorty.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RickAndMorty.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -42,6 +43,7 @@
 			isa = PBXGroup;
 			children = (
 				DBF6C4C430ADDDB10015D9A7 /* RickAndMorty */,
+                A10000000000000000000030 /* RickAndMortyKit */,
 				DBF6C4C330ADDDB10015D9A7 /* Products */,
 			);
 			sourceTree = "<group>";
