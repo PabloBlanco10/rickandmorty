@@ -11,12 +11,19 @@ public struct CharactersView: View {
                 .accessibilityAddTraits(.isHeader)
             Text("Character browsing is coming soon.")
                 .font(.body)
+                .foregroundStyle(.secondary)
         }
         .multilineTextAlignment(.center)
         .padding()
     }
 }
 
-#Preview {
+#Preview("Light") {
     CharactersView()
+        .preferredColorScheme(.light)
+}
+
+#Preview("Dark") {
+    CharactersView()
+        .preferredColorScheme(.dark)
 }
