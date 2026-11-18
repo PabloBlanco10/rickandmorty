@@ -1,0 +1,15 @@
+included:
+  - RickAndMorty/RickAndMorty
+  - Packages/RickAndMortyKit
+excluded:
+  - Packages/RickAndMortyKit/.build
+  - Packages/RickAndMortyKit/.swiftpm
+# Layout and whitespace are owned by SwiftFormat.
+disabled_rules:
+  - trailing_comma
+  - opening_brace
+  - statement_position
+line_length: 140
+identifier_name:
+  excluded:
+    - id
