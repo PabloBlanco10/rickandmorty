@@ -31,13 +31,13 @@ jobs:
       - name: Build application
         run: |
           xcodebuild -version
-          xcodebuild -project RickAndMorty/RickAndMorty.xcodeproj \
+          xcodebuild -project RickAndMorty.xcodeproj \
             -scheme RickAndMorty -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" CODE_SIGNING_ALLOWED=NO build
       - name: Run Domain, Data and Presentation test targets
-        working-directory: Packages/RickAndMortyKit
         run: |
-          xcodebuild -scheme RickAndMortyKit-Package \
+          xcodebuild -project RickAndMorty.xcodeproj \
+            -scheme RickAndMorty \
             -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4' \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -resultBundlePath "$RUNNER_TEMP/FoundationTests.xcresult" \

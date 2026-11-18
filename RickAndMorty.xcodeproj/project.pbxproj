@@ -13,13 +13,15 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+        A10000000000000000000030 /* RickAndMortyKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RickAndMortyKit; path = Packages/RickAndMortyKit; sourceTree = SOURCE_ROOT; };
 		DBF6C4C230ADDDB10015D9A7 /* RickAndMorty.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RickAndMorty.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		DBF6C4C430ADDDB10015D9A7 /* RickAndMorty */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = RickAndMorty;
+			name = RickAndMorty;
+			path = RickAndMorty/RickAndMorty;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -38,10 +40,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+        A10000000000000000000031 /* Packages */ = {
+            isa = PBXGroup;
+            children = (
+                A10000000000000000000030 /* RickAndMortyKit */,
+            );
+            name = Packages;
+            path = Packages;
+            sourceTree = "<group>";
+        };
 		DBF6C4B930ADDDB00015D9A7 = {
 			isa = PBXGroup;
 			children = (
 				DBF6C4C430ADDDB10015D9A7 /* RickAndMorty */,
+                A10000000000000000000031 /* Packages */,
 				DBF6C4C330ADDDB10015D9A7 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -108,7 +120,7 @@
 			mainGroup = DBF6C4B930ADDDB00015D9A7;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-                A10000000000000000000010 /* XCLocalSwiftPackageReference "../Packages/RickAndMortyKit" */,
+                A10000000000000000000010 /* XCLocalSwiftPackageReference "Packages/RickAndMortyKit" */,
             );
             preferredProjectObjectVersion = 77;
 			productRefGroup = DBF6C4C330ADDDB10015D9A7 /* Products */;
@@ -141,7 +153,7 @@
             outputPaths = ();
             runOnlyForDeploymentPostprocessing = 0;
             shellPath = /bin/bash;
-            shellScript = "/bin/bash \"$SRCROOT/../Scripts/lint-xcode.sh\"\n";
+            shellScript = "/bin/bash \"$SRCROOT/Scripts/lint-xcode.sh\"\n";
         };
 /* End PBXShellScriptBuildPhase section */
 
@@ -348,9 +360,9 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCLocalSwiftPackageReference section */
-        A10000000000000000000010 /* XCLocalSwiftPackageReference "../Packages/RickAndMortyKit" */ = {
+        A10000000000000000000010 /* XCLocalSwiftPackageReference "Packages/RickAndMortyKit" */ = {
             isa = XCLocalSwiftPackageReference;
-            relativePath = ../Packages/RickAndMortyKit;
+            relativePath = Packages/RickAndMortyKit;
         };
 /* End XCLocalSwiftPackageReference section */
 

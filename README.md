@@ -29,14 +29,14 @@ currently targets iOS only.
 ## Getting started
 
 Use Xcode 26.4 or compatible newer Xcode. Open
-`RickAndMorty/RickAndMorty.xcodeproj`, select the `RickAndMorty` scheme, and run
+`RickAndMorty.xcodeproj`, select the `RickAndMorty` scheme, and run
 on an iOS Simulator. Appearance follows the system automatically.
 
 ## Testing and CI
 
-Run the `RickAndMortyKit-Package` scheme on an iOS Simulator to execute all three
-test targets. Domain tests cover use-case delegation, fetch policies, results,
-errors, and cancellation. Data and Presentation targets contain no behavioral
+Select the `RickAndMorty` app scheme and press Cmd+U on an iOS Simulator to
+execute all three package test targets. Domain tests cover use-case delegation,
+fetch policies, results, errors, and cancellation. Data and Presentation targets contain no behavioral
 tests yet.
 
 With the pinned development tools on PATH, run `bash Scripts/check-quality.sh`.
