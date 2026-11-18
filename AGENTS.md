@@ -116,6 +116,16 @@ Tests must validate observable behavior.
 - Use injectable time sources for TTL and debounce testing.
 - Use explicit synchronization for asynchronous race-condition tests.
 - Verify success, failure, cancellation and relevant edge cases.
+- Keep every spy, mock and fixture inside its owning test target. Each test must
+  create its own dependencies; do not share mutable globals or depend on order.
+- Preserve Swift Testing's default in-process parallel execution and randomized
+  ordering. Do not use `.serialized` without a documented requirement, disable
+  parallel testing globally, or add a test plan just to restate framework defaults.
+- Xcode selects test targets and configures runner processes; this is distinct
+  from Swift Testing's task-group concurrency within each process. Verify both
+  actual execution and generated test configuration before claiming validation.
+- Keep use-case tests under Tests/UseCases, reusable actor spies under Tests/Mocks
+  with nested request records, and nontrivial fixtures under Tests/Fixtures.
 
 ## Code Quality
 
@@ -127,6 +137,19 @@ Tests must validate observable behavior.
 - Keep comments focused on reasoning, invariants and non-obvious behavior.
 - Do not add new dependencies without approval.
 - Do not introduce features outside the assessment scope.
+
+## Access control
+
+- Prefer the most restrictive access compatible with module boundaries.
+- Use `private` for implementation details when possible; use `fileprivate` only
+  when access across declarations in the same file requires it.
+- Use the default `internal` visibility for declarations used only in a module.
+- Use `public` only for contracts needed by other modules, including initializers
+  and protocol requirements. Do not expose implementation details unnecessarily.
+- Avoid `open` unless external subclassing is explicitly required.
+- Mark classes `final` unless a concrete inheritance requirement is documented.
+- SwiftUI View already guarantees MainActor isolation. Avoid redundant view-level
+  annotations; retain explicit `@MainActor` on future observable ViewModels.
 
 ## Workflow
 
@@ -203,8 +226,23 @@ To format intentional Swift changes:
 swiftformat --cache ignore RickAndMorty/RickAndMorty Packages/RickAndMortyKit
 ```
 
-Do not attach either tool to ordinary local Xcode build phases. Keep formatting
-and lint responsibilities complementary and avoid unrelated reformatting.
+The app has exactly one optional SwiftLint Run Script phase invoking
+`Scripts/lint-xcode.sh`. It resolves the repository from the script's location,
+uses the existing config, discovers SwiftLint on PATH or at either Homebrew prefix,
+and uses `--lenient` to report violations as Xcode warnings. A missing or failing
+tool emits a warning without preventing compilation. The script never formats or
+modifies source files. `SWIFTLINT_EXECUTABLE` can explicitly select an executable;
+set it to a nonexistent path to verify the missing-tool behavior.
+
+The phase runs once per app build, including incremental builds; it does not call
+xcodebuild. It skips when CI=true because CI runs the pinned strict quality script
+separately. Keep SwiftFormat outside build phases. Keep formatting and lint
+responsibilities complementary and avoid unrelated reformatting.
+
+App-only ENABLE_USER_SCRIPT_SANDBOXING is NO in Debug/Release so the optional
+external tool can read repository-wide package sources and its Homebrew
+installation. Project-level sandboxing stays enabled; Swift/package concurrency
+settings remain unchanged. Do not broaden this exception to other targets.
 
 Build from the repository root:
 
@@ -227,3 +265,15 @@ package is iOS-only; use xcodebuild with an iOS Simulator rather than host swift
 test for the whole package. Keep UI tests outside the main CI workflow.
 CI selects Xcode 26.4.1 on macos-26. Disclose local/CI toolchain differences and
 inspect the workflow for the PR's current commit before reporting CI success.
+The private repository's GitHub-hosted execution is currently blocked by account
+spending limits. Do not manually rerun workflows or change repository visibility
+to bypass that blocker. Validate locally and report the CI limitation accurately.
+
+Swift Testing defaults are described in Apple's
+[parallelization documentation](https://developer.apple.com/documentation/testing/parallelization)
+and [WWDC explanation of randomized ordering](https://developer.apple.com/videos/play/wwdc2024/10195/).
+The generated RickAndMortyKit-Package scheme selects all three test targets without
+serialization overrides; no custom test plan is necessary. Inspect generated
+xctestrun settings and result logs when validating this configuration. A changed
+start order exercises order independence, not exhaustive race coverage or a
+guarantee that every run produces a different order.

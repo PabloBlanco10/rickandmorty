@@ -1,6 +1,5 @@
 import SwiftUI
 
-@MainActor
 public struct CharactersView: View {
     public init() {}
 

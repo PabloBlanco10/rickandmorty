@@ -40,6 +40,7 @@ errors, and cancellation. Data and Presentation targets contain no behavioral
 tests yet.
 
 With the pinned development tools on PATH, run `bash Scripts/check-quality.sh`.
+Local Xcode builds also run optional SwiftLint warnings; a missing tool does not block compilation.
 The [CI workflow](.github/workflows/ci.yml) checks formatting, lint, the app build,
 and package tests using Xcode 26.4.1. See the PR checks for actual workflow results.
 Commands and engineering conventions are in [AGENTS.md](AGENTS.md).
