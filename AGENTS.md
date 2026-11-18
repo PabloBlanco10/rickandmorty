@@ -275,7 +275,11 @@ Swift Testing defaults are described in Apple's
 and [WWDC explanation of randomized ordering](https://developer.apple.com/videos/play/wwdc2024/10195/).
 The shared RickAndMorty app scheme selects all three package test targets without
 serialization overrides; no custom test plan is necessary. Keep the existing package
-folder registered as a project file reference so Xcode exposes its test targets.
+folder registered as a named project file reference under the Packages navigator
+group so Xcode exposes its test targets. Use a SOURCE_ROOT-relative path and the
+explicit display name RickAndMortyKit; the package dependency registration alone
+does not expose test targets. Keep one folder reference to the existing package,
+not a second package or duplicate files.
 Scheme test references use the package-relative container and target names as
 blueprint identifiers and buildable names. Test-only Build action entries ensure
 the package tests build without adding them to Run or Archive actions. Inspect generated
