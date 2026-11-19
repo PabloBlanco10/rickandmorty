@@ -153,9 +153,8 @@ Tests must validate observable behavior.
 
 ## Workflow
 
-- Work only in the existing primary checkout at
-  `/Users/pabloblanco/GitHub/rickandmorty`. Never create or use Git worktrees,
-  temporary worktrees, or separate checkouts for implementation.
+- Work only in the existing primary repository checkout. Never create or use Git
+  worktrees, temporary worktrees, or separate checkouts for implementation.
 - Before each PR, inspect Git status and the active branch. Preserve all user
   changes; never discard, overwrite, or stash them without explicit approval.
 - Switch to local main, fetch origin, pull origin/main with `--ff-only`, then
@@ -164,8 +163,7 @@ Tests must validate observable behavior.
 - Do not implement on main or reuse an earlier PR branch. Do not force-push or
   delete user branches without approval. Commit and push the feature branch,
   open a PR targeting main, and leave the primary checkout on that feature branch.
-- PR #3 uses `feature/networking-data-layer`. Its architecture is approved;
-  future significant architecture changes still require explanation and approval.
+- Explain significant architectural changes and obtain approval before implementing them.
 - Inspect existing code before making changes.
 - Preserve unrelated user changes.
 - Explain significant architectural trade-offs.
@@ -185,27 +183,22 @@ Prefer a simpler, defensible solution when two implementations satisfy the same 
 
 - Keep one local package at `Packages/RickAndMortyKit`, with explicit module-first
   target paths and colocated tests. Do not create separate feature packages.
-- The package currently supports iOS 17+ only. Do not add macOS support without
+- Target iOS 17+ and do not add macOS support without
   approval. Keep Domain and Data free of UIKit, AppKit, and SwiftUI imports so
   their responsibilities remain suitable for future platform reuse.
-- PR #3 adds paginated character list/search networking, DTO mapping, the concrete
-  repository and deterministic Data tests. Caching, images, ViewModels, UI search,
-  refresh and a detail endpoint remain outside this PR's scope.
-- Create directories when they contain needed implementation. Presentation's
-  import-only test source keeps its otherwise empty target discoverable; do not
-  add meaningless tests or APIs.
-- `RickAndMortyApp` directly composes `CharactersView`. Add concrete dependencies
-  through constructors when real implementations exist; do not create fake
-  production repositories to disguise unfinished functionality.
+- Create directories when they contain needed implementation. Do not add
+  meaningless tests or artificial production APIs to fill a directory.
+- Compose concrete dependencies in the App target and inject them through
+  constructors. Do not create fake production repositories to disguise unfinished
+  functionality.
 - Keep Character and CharacterPage immutable and Sendable. Origin and location
   are display names; nextPage is a one-based page number or nil. Keep repository
   fetch policy explicit; the search use case alone defaults to cacheFirst.
-- ViewState belongs to Presentation. It currently retains a Sendable Error under
-  Swift 6; introduce a typed presentation error when concrete mappings justify
-  it. Do not compare localized error text in tests.
+- ViewState belongs to Presentation. Use typed presentation errors when concrete
+  mappings justify them. Do not compare localized error text in tests.
 - Treat only the character-search endpoint's verified no-match HTTP 404 as empty
   results. Do not convert arbitrary 404 responses into success.
-- Future cache TTL defaults to three minutes and must be configurable. Invalidate
+- Cache TTL defaults to three minutes and must be configurable. Invalidate
   every page of the refreshed query and prevent obsolete requests from restoring
   invalidated entries. Discuss request deduplication before implementing it.
 - Include Light and Dark previews for meaningful views/components, plus relevant
@@ -283,11 +276,10 @@ package is iOS-only; use xcodebuild with an iOS Simulator rather than host swift
 test for the whole package. Keep UI tests outside the main CI workflow.
 CI selects Xcode 26.4.1 on macos-26. Disclose local/CI toolchain differences and
 inspect the workflow for the PR's current commit before reporting CI success.
-The private repository's GitHub-hosted execution is currently blocked by account
-spending limits. Do not run hosted CI or change repository visibility to bypass
-that blocker. Use `[skip ci]` on commits while this restriction applies so opening
-a PR does not start the pull_request workflow. Validate locally and report that
-CI was deliberately not run; skipped checks are not passing checks.
+Honor instructions restricting hosted CI. When hosted execution is prohibited,
+use `[skip ci]` on commits to suppress push/pull_request workflows; do not change
+repository visibility or trigger workflows to bypass the restriction. Report local
+validation separately: deliberately skipped CI is not passing CI.
 
 ## Networking implementation decisions
 
@@ -299,9 +291,9 @@ CI was deliberately not run; skipped checks are not passing checks.
 - The default URLSession is ephemeral, has no URLCache, and ignores local cached
   data. Every request independently sets reloadIgnoringLocalCacheData and the
   Cache-Control: no-cache header, including when a session is injected.
-- Until the actor TTL cache exists, both FetchPolicy cases always use networking
-  with identical HTTP-cache bypass. Neither policy reads or writes an application
-  cache. Do not imply cacheFirst currently provides caching.
+- cacheFirst returns an unexpired domain page before networking; reloadIgnoringCache
+  bypasses it. Network requests retain the same HTTP-cache bypass under either
+  policy. Failed replacements preserve existing values and their original TTL.
 - Check cancellation before requests, after transport completion, and before
   returning mapped results. Normalize URLSession's cancelled URLError and preserve
   CancellationError. Test late successful completion using controlled continuations.
@@ -316,9 +308,9 @@ CI was deliberately not run; skipped checks are not passing checks.
 - Trim surrounding search whitespace, preserve the remaining query text, and use
   URLComponents/URLQueryItem for encoding. Map pagination metadata into nextPage;
   never issue requests directly to an API-provided next URL.
-- The public repository initializer accepts the API base URL and an optional
-  URLSession. Its internal client initializer supports transport-spy tests. The
-  static app shell does not start requests or construct unused dependencies.
+- Inject API roots, transports and time sources through constructors. Keep test
+  seams internal unless another application module needs them. Static views must
+  not initiate requests or construct unused dependencies.
 
 Swift Testing defaults are described in Apple's
 [parallelization documentation](https://developer.apple.com/documentation/testing/parallelization)
@@ -336,3 +328,29 @@ the package tests build without adding them to Run or Archive actions. Inspect g
 xctestrun settings and result logs when validating this configuration. A changed
 start order exercises order independence, not exhaustive race coverage or a
 guarantee that every run produces a different order.
+
+
+## Cache concurrency
+
+- Keep MemoryCache generic and independent of HTTP, DTOs and domain models. Store
+  domain values and keep search and detail caches independent unless a concrete
+  consistency requirement justifies coordination.
+- Use monotonic time with Duration-based TTL and an injected time source. Entries
+  expire exactly at their deadline. Use manual time in tests, never sleeps.
+- Normalize search keys consistently: trim surrounding whitespace/newlines,
+  preserve case and internal characters, and include the one-based page.
+- Repository code owns fetching and invalidation policy. Use per-key generation
+  tokens to conditionally commit responses; do not introduce shared in-flight
+  network tasks or deduplication without an explicit requirement.
+- After every suspension, revalidate cancellation and token ownership before
+  mutating cache storage. Token validation, related-key invalidation and insertion
+  must form one actor-isolated segment with no intervening await.
+- Successful network replacement of page 1 invalidates later pages and pending
+  writes for that normalized query. Failed/cancelled replacements leave valid
+  entries intact. Unrelated queries must remain independent.
+- Complete or release write tokens on all paths. Cleanup may revoke only its own
+  generation, so an older failure or cancellation cannot revoke a newer write.
+- A discarded cache write does not transfer ownership of a caller's task. Future
+  UI owners must cancel obsolete searches and gate stale UI updates themselves.
+- Test reverse completion order, pagination before/after refresh, cancellation
+  during commits and clock-induced actor reentrancy with controlled continuations.

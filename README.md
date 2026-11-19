@@ -3,9 +3,10 @@
 An iOS technical assessment focused on maintainable architecture, concurrency
 safety, testability, and accessibility.
 
-**Current status:** Data implements paginated character list/search requests and
-domain mapping. The SwiftUI screen remains static, with Light/Dark previews.
-UI search, pagination interaction, caching, refresh, images and detail are deferred.
+**Current status:** Data implements paginated character list/search requests,
+domain mapping and a generic actor cache with configurable TTL (default 180 seconds).
+The SwiftUI screen remains static. UI search, pagination interaction, pull-to-refresh,
+images and detail requests are deferred.
 
 ## Stack
 
@@ -18,7 +19,7 @@ UI search, pagination interaction, caching, refresh, images and detail are defer
 | Target | Responsibility | Dependencies |
 | --- | --- | --- |
 | Domain | Entities, repository contracts, use cases, policies | Foundation |
-| Data | Networking, DTOs, mapping, repository implementation | Domain |
+| Data | Networking, DTOs, mapping, repositories, in-memory cache | Domain |
 | Presentation | SwiftUI views and presentation state | Domain |
 | App | Entry point and dependency composition | Domain, Data, Presentation |
 
@@ -37,8 +38,9 @@ on an iOS Simulator. Appearance follows the system automatically.
 Select the `RickAndMorty` app scheme and press Cmd+U on an iOS Simulator to
 execute all three package test targets. Domain tests cover use-case delegation,
 fetch policies, results, errors, and cancellation. Data tests cover requests,
-decoding, mapping, error handling and cancellation with controlled transports;
-they make no HTTP calls or arbitrary sleeps. Presentation has no behavioral tests yet.
+decoding, mapping, expiration, invalidation, and out-of-order/cancelled responses
+with manual time and controlled transports. They make no HTTP calls or arbitrary
+sleeps. Presentation has no behavioral tests yet.
 
 With the pinned development tools on PATH, run `bash Scripts/check-quality.sh`.
 Local Xcode builds also run optional SwiftLint warnings; a missing tool does not block compilation.
@@ -57,8 +59,13 @@ Commands and engineering conventions are in [AGENTS.md](AGENTS.md).
   Typed presentation error mapping is deferred until concrete failures exist.
 - An internal transport protocol makes the concrete generic HTTP client testable
   without global mocks or additional networking abstractions.
-- The default URLSession disables HTTP caching; every request also bypasses local
-  HTTP cache and sends `Cache-Control: no-cache`. Both fetch policies currently
-  use networking. The actor-based TTL cache will be implemented separately.
+- cacheFirst reuses valid cached domain pages; reloadIgnoringCache always requests
+  a replacement. Successful first-page replacements invalidate that query's later
+  pages; failed refreshes preserve existing data. HTTP-cache bypass is unchanged.
+- Per-key generation tokens prevent old responses from overwriting newer cached
+  results. Validation, invalidation and insertion commit atomically. There is no
+  request deduplication; future ViewModels will own stale UI-result protection.
+- The same model-independent cache can hold characters keyed by ID later. Detail
+  requests and search/detail cache coordination remain deferred.
 - Domain repository errors hide HTTP/decoding details; cancellation remains
   `CancellationError`. Detail requests are deferred until there is a caller.
