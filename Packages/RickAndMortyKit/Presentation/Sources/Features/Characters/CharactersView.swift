@@ -1,47 +1,71 @@
+import Domain
 import SwiftUI
 
 public struct CharactersView: View {
     private let viewModel: CharactersViewModel
-    private let loadsImages: Bool
+    private let imageLoader: (any ImageLoader)?
 
-    public init(viewModel: CharactersViewModel) {
-        self.init(viewModel: viewModel, loadsImages: true)
+    public init(viewModel: CharactersViewModel, imageLoader: any ImageLoader) {
+        self.viewModel = viewModel
+        self.imageLoader = imageLoader
     }
 
-    init(viewModel: CharactersViewModel, loadsImages: Bool) {
+    init(viewModel: CharactersViewModel) {
         self.viewModel = viewModel
-        self.loadsImages = loadsImages
+        imageLoader = nil
     }
 
     public var body: some View {
         NavigationStack {
-            List {
-                content
-            }
-            .listStyle(.plain)
-            .navigationTitle("Characters")
-            .searchable(text: Binding(
-                get: { viewModel.searchText },
-                set: { viewModel.updateSearchText($0) }
-            ), prompt: "Search characters")
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .refreshable { await viewModel.refresh() }
-            .task { await viewModel.loadInitial() }
-            .onDisappear { viewModel.cancel() }
+            searchContent
+                .navigationTitle("Characters")
+                .navigationBarTitleDisplayMode(.inline)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .refreshable { await viewModel.refresh() }
+                .task { await viewModel.loadInitial() }
+                .onDisappear { viewModel.cancel() }
         }
+    }
+
+    private var searchBinding: Binding<String> {
+        Binding(get: { viewModel.searchText }, set: { viewModel.updateSearchText($0) })
+    }
+
+    @ViewBuilder
+    private var searchContent: some View {
+        if #available(iOS 17.1, *) {
+            resultList
+                .searchable(
+                    text: searchBinding,
+                    placement: .navigationBarDrawer(displayMode: .always),
+                    prompt: "Search characters"
+                )
+                .searchPresentationToolbarBehavior(.avoidHidingContent)
+        } else {
+            // iOS 17.0 has no search toolbar-preservation API.
+            resultList.safeAreaInset(edge: .top) {
+                TextField("Search characters", text: searchBinding)
+                    .textFieldStyle(.roundedBorder).padding().background(.bar)
+            }
+        }
+    }
+
+    private var resultList: some View {
+        List { content }
+            .listStyle(.plain)
+            .overlay {
+                if viewModel.isInitialLoading {
+                    ProgressView().controlSize(.large).accessibilityLabel("Loading characters")
+                }
+            }
     }
 
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
         case .idle, .loading:
-            HStack {
-                Spacer()
-                ProgressView("Loading characters…")
-                Spacer()
-            }
-            .listRowSeparator(.hidden)
+            EmptyView()
         case let .failed(error):
             ContentUnavailableView {
                 Label("Unable to load characters", systemImage: "exclamationmark.triangle")
@@ -52,9 +76,6 @@ public struct CharactersView: View {
             }
             .listRowSeparator(.hidden)
         case let .loaded(characters):
-            if viewModel.isRefreshing {
-                ProgressView("Refreshing…")
-            }
             if let error = viewModel.refreshError {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(error.message)
@@ -70,7 +91,8 @@ public struct CharactersView: View {
                 .listRowSeparator(.hidden)
             } else {
                 ForEach(characters) { character in
-                    CharacterRow(character: character, loadsImages: loadsImages)
+                    CharacterRow(character: character, imageLoader: imageLoader)
+                        .onAppear { Task { await viewModel.loadNextPage(approaching: character.id) } }
                 }
             }
             paginationFooter
@@ -84,13 +106,12 @@ public struct CharactersView: View {
                 Text(error.message)
                 Button("Retry loading more") { Task { await viewModel.retryPagination() } }
             }
-        } else if viewModel.nextPage != nil, !viewModel.isRefreshing {
+        } else if viewModel.isLoadingNextPage {
             HStack {
                 Spacer()
-                ProgressView("Loading more…")
+                ProgressView().accessibilityLabel("Loading more characters")
                 Spacer()
             }
-            .task(id: viewModel.nextPage) { await viewModel.loadNextPage() }
         }
     }
 }

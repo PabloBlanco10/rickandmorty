@@ -15,7 +15,7 @@ enum CharactersPreviewFixtures {
             initialState: state,
             debounce: {}
         )
-        return CharactersView(viewModel: model, loadsImages: false)
+        return CharactersView(viewModel: model)
     }
 }
 

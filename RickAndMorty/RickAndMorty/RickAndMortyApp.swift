@@ -7,6 +7,7 @@ import SwiftUI
 @main
 @MainActor
 struct RickAndMortyApp: App {
+    private let imageLoader = URLSessionImageLoader()
     @State private var viewModel: CharactersViewModel
 
     init() {
@@ -19,7 +20,7 @@ struct RickAndMortyApp: App {
 
     var body: some Scene {
         WindowGroup {
-            CharactersView(viewModel: viewModel)
+            CharactersView(viewModel: viewModel, imageLoader: imageLoader)
         }
     }
 }

@@ -6,7 +6,7 @@ safety, testability, and accessibility.
 **Current status:** Data implements paginated character list/search requests,
 domain mapping and a generic actor cache with configurable TTL (default 180 seconds).
 The SwiftUI screen supports debounced search, pagination, pull-to-refresh, retry and
-native AsyncImage thumbnails. Character details remain deferred.
+URLCache-backed image thumbnails. Character details remain deferred.
 
 ## Stack
 
@@ -72,9 +72,17 @@ Commands and engineering conventions are in [AGENTS.md](AGENTS.md).
   There is no Data request deduplication. The ViewModel prevents overlapping page
   loads and resets visible pagination on successful refresh/new searches. Independently cached
   pages may represent different server snapshots; cross-page consistency is not guaranteed.
-- AsyncImage uses native URL loading with loading/failure placeholders; system HTTP
-  caching may apply but persistent image caching is not guaranteed. There is no
-  custom image cache. Previews use local fixtures and disable remote image loading.
+- A dedicated URLSessionImageLoader uses URLCache (20 MB memory / 100 MB disk),
+  independently of JSON requests. Cache-first image requests may reuse stale avatars
+  until eviction; this suits the API's long-lived, immutable image URLs. Valid image
+  responses are explicitly offered to URLCache unless marked no-store. Capacity,
+  eviction and system storage decisions mean retention is not guaranteed. There is
+  no decoded-image pipeline or second generic cache. Row tasks cancel on disappearance
+  or URL changes; previews use placeholders without networking.
+- Pagination starts when one of the current final three rows appears, with one
+  active request and explicit retry after failure. Metadata changes alone do not
+  request another page. The inline title remains visible during native search
+  (iOS 17.0 uses a native text field because toolbar preservation requires 17.1).
 - The same model-independent cache can hold characters keyed by ID later. Detail
   requests and search/detail cache coordination remain deferred.
 - Domain repository errors hide HTTP/decoding details; cancellation remains

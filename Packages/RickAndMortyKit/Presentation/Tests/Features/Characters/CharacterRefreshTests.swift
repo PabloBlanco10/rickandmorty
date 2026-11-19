@@ -14,7 +14,7 @@ struct CharacterRefreshTests {
         #expect(fixture.ids == [1, 2])
         #expect(fixture.model.nextPage == 4)
         #expect(await fixture.repository.requests.last == .init(query: "", page: 1, policy: .reloadIgnoringCache))
-        await fixture.model.loadNextPage()
+        await fixture.model.loadNextPage(approaching: 1)
         #expect(await fixture.repository.requests.count == 2)
         await fixture.repository.succeed(ids: [3], nextPage: 2, at: 1)
         await refresh.value
@@ -47,7 +47,7 @@ struct CharacterRefreshTests {
     func refreshSupersedesPaginationAndOldCleanupCannotStopItsProgress() async {
         let fixture = SearchViewModelFixture()
         await fixture.load()
-        let pagination = Task { await fixture.model.loadNextPage() }
+        let pagination = Task { await fixture.model.loadNextPage(approaching: 1) }
         await fixture.repository.waitUntilRequested(count: 2)
         let refresh = Task { await fixture.model.refresh() }
         await fixture.repository.waitUntilRequested(count: 3)

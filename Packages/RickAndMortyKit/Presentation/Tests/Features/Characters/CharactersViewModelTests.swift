@@ -107,6 +107,8 @@ struct CharactersViewModelTests {
         let search = try #require(fixture.model.updateSearchText("Morty"))
         #expect(fixture.ids == nil)
         #expect(fixture.model.nextPage == nil)
+        await fixture.model.loadNextPage(approaching: 1)
+        #expect(await fixture.repository.requests.count == 1)
         await debounce.waitUntilRequested()
         await debounce.release()
         await fixture.repository.waitUntilRequested(count: 2)
