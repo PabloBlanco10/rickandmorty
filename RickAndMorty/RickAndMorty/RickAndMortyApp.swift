@@ -1,19 +1,25 @@
-//
-//  RickAndMortyApp.swift
-//  RickAndMorty
-//
-//  Created by Pablo Blanco Peris on 18/11/2026.
-//
-
+import Data
+import Domain
+import Foundation
 import Presentation
 import SwiftUI
 
 @main
 @MainActor
 struct RickAndMortyApp: App {
+    @State private var viewModel: CharactersViewModel
+
+    init() {
+        guard let apiRoot = URL(string: "https://rickandmortyapi.com/api") else {
+            preconditionFailure("The configured API root must be a valid URL")
+        }
+        let repository = RickAndMortyCharacterRepository(baseURL: apiRoot)
+        _viewModel = State(initialValue: CharactersViewModel(useCase: SearchCharactersUseCase(repository: repository)))
+    }
+
     var body: some Scene {
         WindowGroup {
-            CharactersView()
+            CharactersView(viewModel: viewModel)
         }
     }
 }
