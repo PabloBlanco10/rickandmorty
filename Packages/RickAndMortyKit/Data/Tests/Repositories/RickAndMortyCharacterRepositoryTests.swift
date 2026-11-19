@@ -3,9 +3,9 @@ import Domain
 import Foundation
 import Testing
 
-struct CharacterRepositoryTests {
+struct RickAndMortyCharacterRepositoryTests {
     @Test(arguments: [FetchPolicy.cacheFirst, .reloadIgnoringCache])
-    func bothPoliciesAlwaysRequestUncachedNetworkResults(policy: FetchPolicy) async throws {
+    func fetchPoliciesUseCachedOrForcedNetworkResults(policy: FetchPolicy) async throws {
         let transport = try HTTPTransportSpy(
             data: APIResponseFixture.pageData(),
             response: APIResponseFixture.response()
@@ -19,7 +19,7 @@ struct CharacterRepositoryTests {
         #expect(first.characters.first?.name == "Rick Sanchez")
         #expect(first.nextPage == 2)
         let requests = await transport.requests
-        #expect(requests.count == 2)
+        #expect(requests.count == (policy == .cacheFirst ? 1 : 2))
         #expect(requests.allSatisfy { $0.cachePolicy == .reloadIgnoringLocalCacheData })
         #expect(requests.allSatisfy { $0.value(forHTTPHeaderField: "Cache-Control") == "no-cache" })
     }
@@ -229,10 +229,7 @@ struct CharacterRepositoryTests {
         transport: any HTTPTransport,
         base: String = "https://example.com/api"
     ) throws -> RickAndMortyCharacterRepository {
-        try RickAndMortyCharacterRepository(
-            baseURL: APIResponseFixture.url(base),
-            client: HTTPClient(transport: transport)
-        )
+        try SearchRepositoryFixture(transport: transport, base: base).repository
     }
 }
 
