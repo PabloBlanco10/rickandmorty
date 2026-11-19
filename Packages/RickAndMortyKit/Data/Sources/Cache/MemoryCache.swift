@@ -1,6 +1,6 @@
 import Foundation
 
-/// Storage and expiration only: callers own fetching and choose which keys to invalidate.
+/// Independent per-key storage and expiration; callers own fetching.
 actor MemoryCache<Key: Hashable & Sendable, Value: Sendable> {
     struct WriteToken: Sendable {
         let key: Key
@@ -49,12 +49,6 @@ actor MemoryCache<Key: Hashable & Sendable, Value: Sendable> {
         writes.removeValue(forKey: key)
     }
 
-    func removeAll(where predicate: @Sendable (Key) -> Bool) {
-        entries = entries.filter { !predicate($0.key) }
-        // Include keys that have a request in progress but no stored value yet.
-        writes = writes.filter { !predicate($0.key) }
-    }
-
     func beginWrite(for key: Key) throws -> WriteToken {
         try Task.checkCancellation()
         let token = WriteToken(key: key, generation: UUID())
@@ -62,21 +56,17 @@ actor MemoryCache<Key: Hashable & Sendable, Value: Sendable> {
         return token
     }
 
-    /// Returns false for superseded/invalidated writes. The value and related keys
-    /// change atomically, after any suspension needed by the injected clock.
+    /// Returns false for superseded/removed writes. Token validation and insertion
+    /// are atomic after any suspension needed by the injected clock.
     func commit(
         _ value: Value,
-        using token: WriteToken,
-        invalidating predicate: (@Sendable (Key) -> Bool)? = nil
+        using token: WriteToken
     ) async throws -> Bool {
         let instant = await now()
         try Task.checkCancellation()
         guard writes[token.key] == token.generation else { return false }
 
-        // Do not await between the token check, invalidation, and insertion.
-        if let predicate {
-            removeAll(where: predicate)
-        }
+        // Do not await between the token check and insertion.
         entries[token.key] = Entry(value: value, expiresAt: instant.advanced(by: ttl))
         writes.removeValue(forKey: token.key)
         return true

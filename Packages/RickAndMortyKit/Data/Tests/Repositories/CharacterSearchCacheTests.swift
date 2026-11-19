@@ -103,32 +103,32 @@ struct CharacterSearchCacheTests {
     }
 
     @Test(arguments: [FetchPolicy.cacheFirst, .reloadIgnoringCache])
-    func firstPageNetworkReplacementInvalidatesOnlyItsLaterPages(policy: FetchPolicy) async throws {
+    func firstPageReplacementPreservesLaterPagesAndTheirExpiration(policy: FetchPolicy) async throws {
         let transport = try HTTPTransportSpy(
             data: APIResponseFixture.pageData(next: nil, id: 9),
             response: APIResponseFixture.response()
         )
-        let fixture = try SearchRepositoryFixture(transport: transport)
+        let fixture = try SearchRepositoryFixture(transport: transport, ttl: .seconds(10))
+        let firstKey = SearchCacheKey(query: "Rick", page: 1)
         let secondKey = SearchCacheKey(query: "Rick", page: 2)
-        let thirdKey = SearchCacheKey(query: "Rick", page: 3)
-        let otherKey = SearchCacheKey(query: "Morty", page: 2)
         let old = try SearchRepositoryFixture.page()
-        for key in [secondKey, thirdKey, otherKey] {
-            try await fixture.cache.insert(old, for: key)
-        }
+        try await fixture.cache.insert(old, for: firstKey)
+        await fixture.time.advance(by: .seconds(5))
+        try await fixture.cache.insert(old, for: secondKey)
+        await fixture.time.advance(by: .seconds(5))
+        // Page 1 has expired; page 2 still has five seconds remaining.
+        let refreshed = try await fixture.repository.searchCharacters(query: " Rick ", page: 1, policy: policy)
+        #expect(refreshed.characters.first?.id == 9)
+        #expect(try await fixture.repository.searchCharacters(query: "Rick", page: 2, policy: .cacheFirst) == old)
+        #expect(await transport.requests.count == 1)
 
-        _ = try await fixture.repository.searchCharacters(query: " Rick ", page: 1, policy: policy)
-
+        await fixture.time.advance(by: .seconds(5))
         #expect(await fixture.cache.value(for: secondKey) == nil)
-        #expect(await fixture.cache.value(for: thirdKey) == nil)
-        #expect(await fixture.cache.value(for: otherKey) == old)
-        let next = try await fixture.repository.searchCharacters(query: "Rick", page: 2, policy: .cacheFirst)
-        #expect(next.characters.first?.id == 9)
-        #expect(await transport.requests.count == 2)
+        #expect(await fixture.cache.value(for: firstKey) == refreshed)
     }
 
-    @Test
-    func refreshingLaterPagePreservesOtherPages() async throws {
+    @Test(arguments: [1, 2])
+    func refreshingOnePagePreservesOtherPages(refreshedPage: Int) async throws {
         let transport = try HTTPTransportSpy(
             data: APIResponseFixture.pageData(next: nil, id: 9),
             response: APIResponseFixture.response()
@@ -139,26 +139,32 @@ struct CharacterSearchCacheTests {
             try await fixture.cache.insert(old, for: SearchCacheKey(query: "Rick", page: page))
         }
 
-        _ = try await fixture.repository.searchCharacters(query: "Rick", page: 2, policy: .reloadIgnoringCache)
+        _ = try await fixture.repository.searchCharacters(
+            query: "Rick",
+            page: refreshedPage,
+            policy: .reloadIgnoringCache
+        )
 
-        #expect(await fixture.cache.value(for: SearchCacheKey(query: "Rick", page: 1)) == old)
-        #expect(await fixture.cache.value(for: SearchCacheKey(query: "Rick", page: 2))?.characters.first?.id == 9)
-        #expect(await fixture.cache.value(for: SearchCacheKey(query: "Rick", page: 3)) == old)
+        for page in 1 ... 3 {
+            let cached = await fixture.cache.value(for: SearchCacheKey(query: "Rick", page: page))
+            #expect(cached?.characters.first?.id == (page == refreshedPage ? 9 : old.characters.first?.id))
+        }
     }
 
     @Test
-    func cachesRecognizedEmptyResultsAndInvalidatesObsoletePages() async throws {
+    func cachesRecognizedEmptyResultsWithoutChangingOtherPages() async throws {
         let transport = try HTTPTransportSpy(
             data: APIResponseFixture.noMatches,
             response: APIResponseFixture.response(status: 404)
         )
         let fixture = try SearchRepositoryFixture(transport: transport)
         let secondKey = SearchCacheKey(query: "Rick", page: 2)
-        try await fixture.cache.insert(SearchRepositoryFixture.page(), for: secondKey)
+        let old = try SearchRepositoryFixture.page()
+        try await fixture.cache.insert(old, for: secondKey)
         let empty = try await fixture.repository.searchCharacters(query: "Rick", page: 1, policy: .reloadIgnoringCache)
         #expect(empty == CharacterPage(characters: [], nextPage: nil))
         #expect(try await fixture.repository.searchCharacters(query: " Rick ", page: 1, policy: .cacheFirst) == empty)
-        #expect(await fixture.cache.value(for: secondKey) == nil)
+        #expect(await fixture.cache.value(for: secondKey) == old)
         #expect(await transport.requests.count == 1)
     }
 

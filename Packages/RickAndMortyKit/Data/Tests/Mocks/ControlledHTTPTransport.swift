@@ -32,10 +32,6 @@ actor ControlledHTTPTransport: HTTPTransport {
         continuation(at: index).resume(returning: (data, response))
     }
 
-    func fail(with error: any Error, at index: Int = 0) {
-        continuation(at: index).resume(throwing: error)
-    }
-
     private func continuation(at index: Int) -> CheckedContinuation<(Foundation.Data, URLResponse), any Error> {
         guard let continuation = pending.removeValue(forKey: index) else {
             preconditionFailure("Wait for the request and complete it only once")

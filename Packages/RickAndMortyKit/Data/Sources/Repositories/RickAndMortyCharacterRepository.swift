@@ -48,13 +48,7 @@ public struct RickAndMortyCharacterRepository: CharacterRepository {
         let token = try await cache.beginWrite(for: key)
         do {
             let result = try await fetchPage(from: url, query: key.query, page: page)
-            if page == 1 {
-                _ = try await cache.commit(result, using: token, invalidating: {
-                    $0.query == key.query && $0.page > 1
-                })
-            } else {
-                _ = try await cache.commit(result, using: token)
-            }
+            _ = try await cache.commit(result, using: token)
             try Task.checkCancellation()
             return result
         } catch {

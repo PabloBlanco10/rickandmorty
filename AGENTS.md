@@ -198,9 +198,9 @@ Prefer a simpler, defensible solution when two implementations satisfy the same 
   mappings justify them. Do not compare localized error text in tests.
 - Treat only the character-search endpoint's verified no-match HTTP 404 as empty
   results. Do not convert arbitrary 404 responses into success.
-- Cache TTL defaults to three minutes and must be configurable. Invalidate
-  every page of the refreshed query and prevent obsolete requests from restoring
-  invalidated entries. Discuss request deduplication before implementing it.
+- Cache TTL defaults to three minutes and must be configurable. Keep query/page
+  entries independent; refreshing one page must not invalidate other pages or
+  their pending writes. Discuss request deduplication before implementing it.
 - Include Light and Dark previews for meaningful views/components, plus relevant
   state and Dynamic Type previews. Static views need no mock dependency. When
   data is required, inject fixtures/mocks; never use live services in previews.
@@ -339,18 +339,20 @@ guarantee that every run produces a different order.
   expire exactly at their deadline. Use manual time in tests, never sleeps.
 - Normalize search keys consistently: trim surrounding whitespace/newlines,
   preserve case and internal characters, and include the one-based page.
-- Repository code owns fetching and invalidation policy. Use per-key generation
+- Repository code owns fetching. Use per-key generation
   tokens to conditionally commit responses; do not introduce shared in-flight
   network tasks or deduplication without an explicit requirement.
 - After every suspension, revalidate cancellation and token ownership before
-  mutating cache storage. Token validation, related-key invalidation and insertion
-  must form one actor-isolated segment with no intervening await.
-- Successful network replacement of page 1 invalidates later pages and pending
-  writes for that normalized query. Failed/cancelled replacements leave valid
-  entries intact. Unrelated queries must remain independent.
+  committing a network result. Token validation and insertion must form one
+  actor-isolated segment with no intervening await.
+- Failed/cancelled replacements preserve existing entries and their original TTL.
+  Independent page lifetimes do not guarantee a consistent server snapshot across
+  pages. Presentation owners reset visible pagination on new searches/refreshes;
+  cache storage does not coordinate page generations.
 - Complete or release write tokens on all paths. Cleanup may revoke only its own
   generation, so an older failure or cancellation cannot revoke a newer write.
 - A discarded cache write does not transfer ownership of a caller's task. Future
   UI owners must cancel obsolete searches and gate stale UI updates themselves.
-- Test reverse completion order, pagination before/after refresh, cancellation
-  during commits and clock-induced actor reentrancy with controlled continuations.
+- Test reverse completion order, independent page lifetimes, cancellation and
+  clock-induced actor reentrancy with controlled continuations. Keep race tests
+  focused on distinct responsibilities rather than duplicating them across layers.

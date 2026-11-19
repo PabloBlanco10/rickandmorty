@@ -56,17 +56,14 @@ struct MemoryCacheTests {
     }
 
     @Test
-    func removalAndPredicateInvalidationKeepOtherKeysIndependent() async throws {
+    func removalKeepsOtherKeysIndependent() async throws {
         let time = ManualTimeSource()
         let cache = MemoryCache<Int, String>(now: { await time.now() })
         try await cache.insert("one", for: 1)
         try await cache.insert("two", for: 2)
-        try await cache.insert("three", for: 3)
         await cache.removeValue(for: 1)
         #expect(await cache.value(for: 1) == nil)
-        await cache.removeAll { $0.isMultiple(of: 2) }
-        #expect(await cache.value(for: 2) == nil)
-        #expect(await cache.value(for: 3) == "three")
+        #expect(await cache.value(for: 2) == "two")
     }
 
     @Test
@@ -125,33 +122,6 @@ struct MemoryCacheTests {
     }
 
     @Test
-    func successfulCommitInvalidatesStoredAndNotYetStoredKeys() async throws {
-        let time = ManualTimeSource()
-        let cache = MemoryCache<Int, String>(now: { await time.now() })
-        try await cache.insert("old page", for: 2)
-        try await cache.insert("unrelated", for: 4)
-        let pending = try await cache.beginWrite(for: 3)
-        let token = try await cache.beginWrite(for: 1)
-        #expect(try await cache.commit("new first page", using: token, invalidating: { $0 == 2 || $0 == 3 }))
-        #expect(await cache.value(for: 1) == "new first page")
-        #expect(await cache.value(for: 2) == nil)
-        #expect(try await !cache.commit("obsolete page", using: pending))
-        #expect(await cache.value(for: 4) == "unrelated")
-    }
-
-    @Test
-    func staleCommitCannotInvalidateOtherEntries() async throws {
-        let time = ManualTimeSource()
-        let cache = MemoryCache<Int, String>(now: { await time.now() })
-        try await cache.insert("keep", for: 2)
-        let older = try await cache.beginWrite(for: 1)
-        let newer = try await cache.beginWrite(for: 1)
-        #expect(try await !cache.commit("old", using: older, invalidating: { $0 == 2 }))
-        #expect(await cache.value(for: 2) == "keep")
-        #expect(try await cache.commit("new", using: newer))
-    }
-
-    @Test
     func rechecksGenerationAfterClockSuspension() async throws {
         let time = ManualTimeSource()
         let cache = MemoryCache<Int, String>(now: { await time.now() })
@@ -169,20 +139,22 @@ struct MemoryCacheTests {
     }
 
     @Test
-    func cancellationDuringClockSuspensionCannotWriteOrInvalidate() async throws {
+    func cancellationDuringClockSuspensionPreservesValueAndExpiration() async throws {
         let time = ManualTimeSource()
         let cache = MemoryCache<Int, String>(now: { await time.now() })
-        try await cache.insert("keep", for: 2)
+        try await cache.insert("keep", for: 1)
+        await time.advance(by: .seconds(179))
         let token = try await cache.beginWrite(for: 1)
         await time.suspendNextRead()
-        let commit = Task { try await cache.commit("cancelled", using: token, invalidating: { $0 == 2 }) }
+        let commit = Task { try await cache.commit("cancelled", using: token) }
         await time.waitUntilReadSuspends()
         commit.cancel()
         await time.resumeRead()
 
         await #expect(throws: CancellationError.self) { try await commit.value }
         await cache.finishWrite(token)
+        #expect(await cache.value(for: 1) == "keep")
+        await time.advance(by: .seconds(1))
         #expect(await cache.value(for: 1) == nil)
-        #expect(await cache.value(for: 2) == "keep")
     }
 }

@@ -3,18 +3,15 @@ actor ManualTimeSource {
     private var instant = ContinuousClock().now
     private var suspendNext = false
     private var suspendedRead: CheckedContinuation<ContinuousClock.Instant, Never>?
-    private var readWaiters: [CheckedContinuation<Void, Never>] = []
+    private var readWaiter: CheckedContinuation<Void, Never>?
 
     func now() async -> ContinuousClock.Instant {
         guard suspendNext else { return instant }
         suspendNext = false
         return await withCheckedContinuation { continuation in
             suspendedRead = continuation
-            let waiters = readWaiters
-            readWaiters.removeAll()
-            for waiter in waiters {
-                waiter.resume()
-            }
+            readWaiter?.resume()
+            readWaiter = nil
         }
     }
 
@@ -31,7 +28,8 @@ actor ManualTimeSource {
         if suspendedRead != nil {
             return
         }
-        await withCheckedContinuation { readWaiters.append($0) }
+        precondition(readWaiter == nil)
+        await withCheckedContinuation { readWaiter = $0 }
     }
 
     func resumeRead() {

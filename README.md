@@ -38,7 +38,7 @@ on an iOS Simulator. Appearance follows the system automatically.
 Select the `RickAndMorty` app scheme and press Cmd+U on an iOS Simulator to
 execute all three package test targets. Domain tests cover use-case delegation,
 fetch policies, results, errors, and cancellation. Data tests cover requests,
-decoding, mapping, expiration, invalidation, and out-of-order/cancelled responses
+decoding, mapping, independent page expiration, and out-of-order/cancelled responses
 with manual time and controlled transports. They make no HTTP calls or arbitrary
 sleeps. Presentation has no behavioral tests yet.
 
@@ -60,11 +60,14 @@ Commands and engineering conventions are in [AGENTS.md](AGENTS.md).
 - An internal transport protocol makes the concrete generic HTTP client testable
   without global mocks or additional networking abstractions.
 - cacheFirst reuses valid cached domain pages; reloadIgnoringCache always requests
-  a replacement. Successful first-page replacements invalidate that query's later
-  pages; failed refreshes preserve existing data. HTTP-cache bypass is unchanged.
+  a replacement. Each query/page has an independent TTL; refreshing page 1 leaves
+  later pages cached. Failed/cancelled refreshes preserve data and original expiry.
+  HTTP-cache bypass is unchanged.
 - Per-key generation tokens prevent old responses from overwriting newer cached
-  results. Validation, invalidation and insertion commit atomically. There is no
-  request deduplication; future ViewModels will own stale UI-result protection.
+  results. Token validation and insertion commit atomically after checking cancellation.
+  There is no request deduplication; future ViewModels will reset visible pagination
+  on new searches/refreshes and protect against stale UI results. Independently cached
+  pages may represent different server snapshots; cross-page consistency is not guaranteed.
 - The same model-independent cache can hold characters keyed by ID later. Detail
   requests and search/detail cache coordination remain deferred.
 - Domain repository errors hide HTTP/decoding details; cancellation remains
