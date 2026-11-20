@@ -32,23 +32,10 @@ public struct CharactersView: View {
         Binding(get: { viewModel.searchText }, set: { viewModel.updateSearchText($0) })
     }
 
-    @ViewBuilder
     private var searchContent: some View {
-        if #available(iOS 17.1, *) {
-            resultList
-                .searchable(
-                    text: searchBinding,
-                    placement: .navigationBarDrawer(displayMode: .always),
-                    prompt: "Search characters"
-                )
-                .searchPresentationToolbarBehavior(.avoidHidingContent)
-        } else {
-            // iOS 17.0 has no search toolbar-preservation API.
-            resultList.safeAreaInset(edge: .top) {
-                TextField("Search characters", text: searchBinding)
-                    .textFieldStyle(.roundedBorder).padding().background(.bar)
-            }
-        }
+        resultList.searchable(
+            text: searchBinding, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search characters"
+        )
     }
 
     private var resultList: some View {
@@ -72,7 +59,7 @@ public struct CharactersView: View {
             } description: {
                 Text(CharactersError(error).message)
             } actions: {
-                Button("Retry") { Task { await viewModel.retrySearch() } }
+                Button("Retry loading characters") { Task { await viewModel.retrySearch() } }
             }
             .listRowSeparator(.hidden)
         case let .loaded(characters):

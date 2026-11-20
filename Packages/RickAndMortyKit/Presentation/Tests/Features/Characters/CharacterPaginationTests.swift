@@ -78,7 +78,8 @@ struct CharacterPaginationTests {
         await fixture.load()
         let pagination = Task { await fixture.model.loadNextPage(approaching: 1) }
         await fixture.repository.waitUntilRequested(count: 2)
-        let search = try #require(fixture.model.updateSearchText("Morty"))
+        fixture.model.updateSearchText("Morty")
+        let search = try #require(fixture.model.operation)
         await fixture.repository.waitUntilRequested(count: 3)
         await fixture.repository.succeed(ids: [3], at: 2)
         await search.value

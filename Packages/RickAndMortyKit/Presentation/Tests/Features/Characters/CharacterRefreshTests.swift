@@ -68,7 +68,8 @@ struct CharacterRefreshTests {
         await fixture.load()
         let refresh = Task { await fixture.model.refresh() }
         await fixture.repository.waitUntilRequested(count: 2)
-        let search = try #require(fixture.model.updateSearchText("Morty"))
+        fixture.model.updateSearchText("Morty")
+        let search = try #require(fixture.model.operation)
         await debounce.waitUntilRequested()
         await fixture.repository.succeed(ids: [2], at: 1)
         await refresh.value

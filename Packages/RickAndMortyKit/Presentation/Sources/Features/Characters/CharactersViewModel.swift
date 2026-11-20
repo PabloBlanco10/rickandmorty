@@ -15,7 +15,8 @@ public final class CharactersViewModel {
 
     @ObservationIgnored private let useCase: SearchCharactersUseCase
     @ObservationIgnored private let debounce: @Sendable () async throws -> Void
-    @ObservationIgnored private var operation: Task<Void, Never>?
+    // Read-only inside the module so tests can await exact completion after a Void UI action.
+    @ObservationIgnored private(set) var operation: Task<Void, Never>?
     @ObservationIgnored private var generation = UUID()
     @ObservationIgnored private var query = ""
 
@@ -44,21 +45,20 @@ public final class CharactersViewModel {
 
     func loadInitial() async {
         guard case .idle = state else { return }
-        await wait(for: start())
+        await wait(for: startLoading())
     }
 
     /// The binding calls this synchronously: obsolete work is invalidated before debounce.
-    @discardableResult
-    func updateSearchText(_ text: String) -> Task<Void, Never>? {
+    func updateSearchText(_ text: String) {
         searchText = text
         let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard normalized != query else { return nil }
+        guard normalized != query else { return }
         query = normalized
-        return start(debounced: true)
+        _ = startLoading(debounced: true)
     }
 
     func retrySearch() async {
-        await wait(for: start())
+        await wait(for: startLoading())
     }
 
     func loadNextPage(approaching characterID: Int) async {
@@ -70,7 +70,7 @@ public final class CharactersViewModel {
     private func loadNextPage() async {
         guard operation == nil, paginationError == nil,
               case .loaded = state, let nextPage else { return }
-        await wait(for: start(page: nextPage))
+        await wait(for: startLoading(page: nextPage))
     }
 
     func retryPagination() async {
@@ -80,7 +80,7 @@ public final class CharactersViewModel {
     }
 
     func refresh() async {
-        await wait(for: start(policy: .reloadIgnoringCache))
+        await wait(for: startLoading(policy: .reloadIgnoringCache))
     }
 
     func cancel() {
@@ -94,7 +94,7 @@ public final class CharactersViewModel {
         }
     }
 
-    private func start(
+    private func startLoading(
         page: Int = 1, policy: FetchPolicy = .cacheFirst, debounced: Bool = false
     ) -> Task<Void, Never> {
         cancel()

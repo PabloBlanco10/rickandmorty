@@ -7,6 +7,7 @@ struct StatusBagde: View {
     var body: some View {
         Text(statusText)
             .font(.caption.weight(.semibold))
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(backgroundColor.opacity(0.2))

@@ -72,17 +72,17 @@ Commands and engineering conventions are in [AGENTS.md](AGENTS.md).
   There is no Data request deduplication. The ViewModel prevents overlapping page
   loads and resets visible pagination on successful refresh/new searches. Independently cached
   pages may represent different server snapshots; cross-page consistency is not guaranteed.
-- A dedicated URLSessionImageLoader uses URLCache (20 MB memory / 100 MB disk),
-  independently of JSON requests. Cache-first image requests may reuse stale avatars
-  until eviction; this suits the API's long-lived, immutable image URLs. Valid image
-  responses are explicitly offered to URLCache unless marked no-store. Capacity,
-  eviction and system storage decisions mean retention is not guaranteed. There is
-  no decoded-image pipeline or second generic cache. Row tasks cancel on disappearance
-  or URL changes; previews use placeholders without networking.
+- A dedicated URLSessionImageLoader uses a default URLSession and URLCache
+  (20 MB memory / 100 MB disk), independently of JSON requests. Image requests use
+  returnCacheDataElseLoad; URLSession manages HTTP response caching automatically.
+  Headers, cache policy, capacity and eviction determine reuse; persistent image
+  storage is not guaranteed. There are no manual cache operations or a second
+  generic cache. Row tasks cancel on disappearance or URL changes, and previews
+  use placeholders without networking.
 - Pagination starts when one of the current final three rows appears, with one
   active request and explicit retry after failure. Metadata changes alone do not
-  request another page. The inline title remains visible during native search
-  (iOS 17.0 uses a native text field because toolbar preservation requires 17.1).
+  request another page. Native searchable uses an inline navigation title and
+  follows normal SwiftUI behavior while search is active.
 - The same model-independent cache can hold characters keyed by ID later. Detail
   requests and search/detail cache coordination remain deferred.
 - Domain repository errors hide HTTP/decoding details; cancellation remains

@@ -17,13 +17,16 @@ struct CharacterRow: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(character.name).font(.headline)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text("\(character.species)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     StatusBagde(status: character.status)
                 }
                 Spacer()
                 Image(systemName: "chevron.forward")
+                    .accessibilityHidden(true)
             }
         }
         .padding(.vertical, 4)

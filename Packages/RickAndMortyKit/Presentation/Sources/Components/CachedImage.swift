@@ -16,7 +16,7 @@ struct CachedImage: View {
             } else if failed || loader == nil {
                 Image(systemName: "person.crop.square").font(.title).foregroundStyle(.secondary)
             } else {
-                ProgressView()
+                ProgressView().accessibilityLabel("Loading character image")
             }
         }
         .task(id: url) { await load() }
