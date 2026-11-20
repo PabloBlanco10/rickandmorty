@@ -8,6 +8,44 @@ actor ControlledCharacterRepository: CharacterRepository {
         let policy: FetchPolicy
     }
 
+    struct DetailRequest: Equatable, Sendable {
+        let id: Int
+        let policy: FetchPolicy
+    }
+
+    private(set) var detailRequests: [DetailRequest] = []
+    private var detailPending: [Int: CheckedContinuation<Character, any Error>] = [:]
+    private var detailWaiter: (count: Int, continuation: CheckedContinuation<Void, Never>)?
+
+    func character(id: Int, policy: FetchPolicy) async throws -> Character {
+        let index = detailRequests.count
+        detailRequests.append(DetailRequest(id: id, policy: policy))
+        return try await withCheckedThrowingContinuation { continuation in
+            detailPending[index] = continuation
+            if let detailWaiter,
+               detailRequests.count >= detailWaiter.count
+            {
+                self.detailWaiter = nil
+                detailWaiter.continuation.resume()
+            }
+        }
+    }
+
+    func waitForDetail(count: Int = 1) async {
+        guard detailRequests.count < count else {
+            return
+        }
+        precondition(detailWaiter == nil)
+        await withCheckedContinuation { detailWaiter = (count, $0) }
+    }
+
+    func completeDetail(_ result: Result<Character, any Error>, at index: Int = 0) {
+        guard let continuation = detailPending.removeValue(forKey: index) else {
+            preconditionFailure("Wait for detail and complete it exactly once")
+        }
+        continuation.resume(with: result)
+    }
+
     private(set) var requests: [Request] = []
     private(set) var cancelledRequests: Set<Int> = []
     private var pending: [Int: CheckedContinuation<CharacterPage, any Error>] = [:]

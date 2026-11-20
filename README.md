@@ -6,7 +6,8 @@ safety, testability, and accessibility.
 **Current status:** Data implements paginated character list/search requests,
 domain mapping and a generic actor cache with configurable TTL (default 180 seconds).
 The SwiftUI screen supports debounced search, pagination, retry and
-URLCache-backed image thumbnails. Character details remain deferred.
+URLCache-backed image thumbnails. Selecting a row loads character details by ID,
+with loading/error states and retry.
 
 ## Stack
 
@@ -41,7 +42,7 @@ fetch policies, results, errors, and cancellation. Data tests cover requests,
 decoding, mapping, independent page expiration, and out-of-order/cancelled responses
 with manual time and controlled transports. They make no HTTP calls or arbitrary
 sleeps. Presentation tests use controlled repositories and debounce to verify search,
-stale-response protection, pagination, error preservation and retry.
+stale-response protection, pagination, detail loading, cancellation and retry.
 
 With the pinned development tools on PATH, run `bash Scripts/check-quality.sh`.
 Local Xcode builds also run optional SwiftLint warnings; a missing tool does not block compilation.
@@ -84,7 +85,12 @@ Commands and engineering conventions are in [AGENTS.md](AGENTS.md).
   active request and explicit retry after failure. Metadata changes alone do not
   request another page. Native searchable uses an inline navigation title and
   follows normal SwiftUI behavior while search is active.
-- The same model-independent cache can hold characters keyed by ID later. Detail
-  requests and search/detail cache coordination remain deferred.
+- Details use GetCharacterDetailUseCase and the same repository/DTO mapping, with
+  an independent MemoryCache<Int, Character>. Both caches share the configurable
+  180-second default TTL and generation-protected writes, without synchronization.
+- Native NavigationStack carries selected IDs. Each detail destination owns a
+  ViewModel for one immutable ID; SwiftUI owns cancellable load/retry tasks. A
+  cancellation check prevents late results from becoming visible, so detail needs
+  no search debounce, owned Task or ViewModel generation token.
 - Domain repository errors hide HTTP/decoding details; cancellation remains
-  `CancellationError`. Detail requests are deferred until there is a caller.
+  `CancellationError`. A detail 404 remains a service failure, never an empty search.

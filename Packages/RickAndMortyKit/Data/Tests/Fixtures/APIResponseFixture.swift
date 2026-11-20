@@ -34,6 +34,15 @@ enum APIResponseFixture {
         ])
     }
 
+    static func characterData(id: Int = 1, name: String = "Rick Sanchez") throws -> Foundation.Data {
+        let object = try JSONSerialization.jsonObject(with: pageData(id: id))
+        let page = try #require(object as? [String: Any])
+        let characters = try #require(page["results"] as? [[String: Any]])
+        var character = try #require(characters.first)
+        character["name"] = name
+        return try JSONSerialization.data(withJSONObject: character)
+    }
+
     static var noMatches: Foundation.Data {
         Foundation.Data(#"{"error":"There is nothing here"}"#.utf8)
     }
