@@ -5,7 +5,7 @@ safety, testability, and accessibility.
 
 **Current status:** Data implements paginated character list/search requests,
 domain mapping and a generic actor cache with configurable TTL (default 180 seconds).
-The SwiftUI screen supports debounced search, pagination, pull-to-refresh, retry and
+The SwiftUI screen supports debounced search, pagination, retry and
 URLCache-backed image thumbnails. Character details remain deferred.
 
 ## Stack
@@ -41,7 +41,7 @@ fetch policies, results, errors, and cancellation. Data tests cover requests,
 decoding, mapping, independent page expiration, and out-of-order/cancelled responses
 with manual time and controlled transports. They make no HTTP calls or arbitrary
 sleeps. Presentation tests use controlled repositories and debounce to verify search,
-stale-response protection, pagination and refresh.
+stale-response protection, pagination, error preservation and retry.
 
 With the pinned development tools on PATH, run `bash Scripts/check-quality.sh`.
 Local Xcode builds also run optional SwiftLint warnings; a missing tool does not block compilation.
@@ -59,18 +59,19 @@ Commands and engineering conventions are in [AGENTS.md](AGENTS.md).
   repository through SearchCharactersUseCase. The ViewModel owns query text and one
   cancellable operation; generation checks protect results, errors and cleanup.
 - Meaningful query changes immediately clear old results and cancel obsolete work,
-  then debounce for 300 ms. Refresh preserves visible content until success.
-  Full-screen ViewState stays separate from refresh/pagination progress and errors.
+  then debounce for 300 ms. Full-screen ViewState stays separate from pagination
+  progress and errors. Pull-to-refresh is intentionally outside the UI scope.
 - An internal transport protocol makes the concrete generic HTTP client testable
   without global mocks or additional networking abstractions.
-- cacheFirst reuses valid cached domain pages; reloadIgnoringCache always requests
-  a replacement. Each query/page has an independent TTL; refreshing page 1 leaves
-  later pages cached. Failed/cancelled refreshes preserve data and original expiry.
+- Presentation uses cacheFirst for searches and pages. Domain/Data retain
+  reloadIgnoringCache for explicit network replacements by future callers. Each
+  query/page has an independent TTL; replacing one page leaves other pages cached.
+  Failed/cancelled replacements preserve existing data and original expiry.
   HTTP-cache bypass is unchanged.
 - Per-key generation tokens prevent old responses from overwriting newer cached
   results. Token validation and insertion commit atomically after checking cancellation.
   There is no Data request deduplication. The ViewModel prevents overlapping page
-  loads and resets visible pagination on successful refresh/new searches. Independently cached
+  loads and resets visible pagination on new searches. Independently cached
   pages may represent different server snapshots; cross-page consistency is not guaranteed.
 - A dedicated URLSessionImageLoader uses a default URLSession and URLCache
   (20 MB memory / 100 MB disk), independently of JSON requests. Image requests use

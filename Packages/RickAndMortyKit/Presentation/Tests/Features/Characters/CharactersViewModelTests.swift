@@ -7,15 +7,15 @@ struct CharactersViewModelTests {
     @Test
     func initialLoadRequestsGeneralListOnce() async {
         let fixture = SearchViewModelFixture()
-        let load = Task { await fixture.model.loadInitial() }
+        let load = Task { await fixture.viewModel.loadInitial() }
         await fixture.repository.waitUntilRequested()
         #expect(fixture.isLoading)
         #expect(await fixture.repository.requests == [.init(query: "", page: 1, policy: .cacheFirst)])
         await fixture.repository.succeed(ids: [1, 2], nextPage: 2)
         await load.value
         #expect(fixture.ids == [1, 2])
-        #expect(fixture.model.nextPage == 2)
-        await fixture.model.loadInitial()
+        #expect(fixture.viewModel.nextPage == 2)
+        await fixture.viewModel.loadInitial()
         #expect(await fixture.repository.requests.count == 1)
     }
 
@@ -25,18 +25,18 @@ struct CharactersViewModelTests {
         await fixture.load(ids: [], nextPage: nil)
         #expect(fixture.ids == [])
         #expect(fixture.failure == nil)
-        #expect(fixture.model.nextPage == nil)
+        #expect(fixture.viewModel.nextPage == nil)
     }
 
     @Test
     func searchFailureHasAnImmediateRetry() async {
         let fixture = SearchViewModelFixture()
-        let load = Task { await fixture.model.loadInitial() }
+        let load = Task { await fixture.viewModel.loadInitial() }
         await fixture.repository.waitUntilRequested()
         await fixture.repository.fail(.networkUnavailable)
         await load.value
         #expect(fixture.failure == .connection)
-        let retry = Task { await fixture.model.retrySearch() }
+        let retry = Task { await fixture.viewModel.retrySearch() }
         await fixture.repository.waitUntilRequested(count: 2)
         #expect(fixture.isLoading)
         await fixture.repository.succeed(ids: [1], at: 1)
@@ -49,12 +49,12 @@ struct CharactersViewModelTests {
     func debounceCancelsPreviousInputAndNormalizesOnlySurroundingWhitespace() async throws {
         let debounce = ControlledDebounce()
         let fixture = SearchViewModelFixture(debounce: { await debounce.wait() })
-        fixture.model.updateSearchText("Rick")
-        let first = try #require(fixture.model.operation)
+        fixture.viewModel.updateSearchText("Rick")
+        let first = try #require(fixture.viewModel.operation)
         await debounce.waitUntilRequested()
         #expect(await fixture.repository.requests.isEmpty)
-        fixture.model.updateSearchText("  Morty Smith\n")
-        let second = try #require(fixture.model.operation)
+        fixture.viewModel.updateSearchText("  Morty Smith\n")
+        let second = try #require(fixture.viewModel.operation)
         #expect(first.isCancelled)
         await debounce.waitUntilRequested(count: 2)
         await debounce.release()
@@ -66,7 +66,7 @@ struct CharactersViewModelTests {
         await fixture.repository.succeed(ids: [2])
         await second.value
         #expect(fixture.ids == [2])
-        fixture.model.updateSearchText("Morty Smith")
+        fixture.viewModel.updateSearchText("Morty Smith")
         #expect(fixture.ids == [2])
         #expect(await fixture.repository.requests.count == 1)
     }
@@ -74,11 +74,11 @@ struct CharactersViewModelTests {
     @Test(arguments: [false, true], [false, true])
     func obsoleteSearchCannotChangeNewQueryState(olderFails: Bool, olderFinishesFirst: Bool) async throws {
         let fixture = SearchViewModelFixture()
-        fixture.model.updateSearchText("Rick")
-        let old = try #require(fixture.model.operation)
+        fixture.viewModel.updateSearchText("Rick")
+        let old = try #require(fixture.viewModel.operation)
         await fixture.repository.waitUntilRequested()
-        fixture.model.updateSearchText("Morty")
-        let new = try #require(fixture.model.operation)
+        fixture.viewModel.updateSearchText("Morty")
+        let new = try #require(fixture.viewModel.operation)
         #expect(old.isCancelled)
         #expect(fixture.ids == nil)
         #expect(fixture.isLoading)
@@ -100,7 +100,7 @@ struct CharactersViewModelTests {
             await new.value
         }
         #expect(fixture.ids == [2])
-        #expect(fixture.model.nextPage == nil)
+        #expect(fixture.viewModel.nextPage == nil)
         #expect(fixture.failure == nil)
     }
 
@@ -109,11 +109,11 @@ struct CharactersViewModelTests {
         let debounce = ControlledDebounce()
         let fixture = SearchViewModelFixture(debounce: { await debounce.wait() })
         await fixture.load(ids: [1], nextPage: 5)
-        fixture.model.updateSearchText("Morty")
-        let search = try #require(fixture.model.operation)
+        fixture.viewModel.updateSearchText("Morty")
+        let search = try #require(fixture.viewModel.operation)
         #expect(fixture.ids == nil)
-        #expect(fixture.model.nextPage == nil)
-        await fixture.model.loadNextPage(approaching: 1)
+        #expect(fixture.viewModel.nextPage == nil)
+        await fixture.viewModel.loadNextPage(approaching: 1)
         #expect(await fixture.repository.requests.count == 1)
         await debounce.waitUntilRequested()
         await debounce.release()
@@ -127,7 +127,7 @@ struct CharactersViewModelTests {
     @Test
     func lifecycleCancellationReachesRepositoryAndAllowsReload() async {
         let fixture = SearchViewModelFixture()
-        let load = Task { await fixture.model.loadInitial() }
+        let load = Task { await fixture.viewModel.loadInitial() }
         await fixture.repository.waitUntilRequested()
         load.cancel()
         await fixture.repository.succeed(ids: [1])
@@ -135,7 +135,7 @@ struct CharactersViewModelTests {
         #expect(await fixture.repository.cancelledRequests == [0])
         #expect(fixture.ids == nil)
         #expect(fixture.failure == nil)
-        let retry = Task { await fixture.model.loadInitial() }
+        let retry = Task { await fixture.viewModel.loadInitial() }
         await fixture.repository.waitUntilRequested(count: 2)
         await fixture.repository.succeed(ids: [2], at: 1)
         await retry.value

@@ -31,7 +31,9 @@ actor ControlledCharacterRepository: CharacterRepository {
     }
 
     func waitUntilRequested(count: Int = 1) async {
-        guard requests.count < count else { return }
+        guard requests.count < count else {
+            return
+        }
         precondition(waiter == nil)
         await withCheckedContinuation { waiter = (count, $0) }
     }

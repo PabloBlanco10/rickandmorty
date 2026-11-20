@@ -11,7 +11,8 @@ final class ImageURLProtocol: URLProtocol {
     }
 
     override func startLoading() {
-        guard let url = request.url, request.cachePolicy == .returnCacheDataElseLoad,
+        guard let url = request.url,
+              request.cachePolicy == .returnCacheDataElseLoad,
               request.value(forHTTPHeaderField: "Cache-Control") == nil
         else {
             client?.urlProtocol(self, didFailWithError: URLError(.badURL))
@@ -28,7 +29,9 @@ final class ImageURLProtocol: URLProtocol {
             guard let http = HTTPURLResponse(
                 url: url, statusCode: Int(url.lastPathComponent) ?? 200, httpVersion: nil,
                 headerFields: ["Content-Type": "image/png"]
-            ) else { return }
+            ) else {
+                return
+            }
             response = http
         }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)

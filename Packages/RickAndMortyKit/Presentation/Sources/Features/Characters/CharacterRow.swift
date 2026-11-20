@@ -11,12 +11,12 @@ struct CharacterRow: View {
                 .frame(width: 64, height: 64)
                 .background(.quaternary)
                 .clipShape(.rect(cornerRadius: 10))
-                .id(character.imageURL)
                 .accessibilityHidden(true)
 
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(character.name).font(.headline)
+                    Text(character.name)
+                        .font(.headline)
                         .fixedSize(horizontal: false, vertical: true)
                     Text("\(character.species)")
                         .font(.subheadline)
@@ -35,10 +35,13 @@ struct CharacterRow: View {
 }
 
 #Preview("Row — Light") {
-    CharacterRow(character: CharactersPreviewFixtures.character).padding()
+    CharacterRow(character: CharactersPreviewFixtures.character)
+        .padding()
 }
 
 #Preview("Row — Dark, large text") {
     CharacterRow(character: CharactersPreviewFixtures.character)
-        .padding().preferredColorScheme(.dark).dynamicTypeSize(.accessibility3)
+        .padding()
+        .preferredColorScheme(.dark)
+        .dynamicTypeSize(.accessibility3)
 }

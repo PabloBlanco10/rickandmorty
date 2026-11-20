@@ -40,7 +40,8 @@ struct StatusBagde: View {
         StatusBagde(status: .alive)
         StatusBagde(status: .dead)
         StatusBagde(status: .unknown)
-    }.padding()
+    }
+    .padding()
 }
 
 #Preview("Status badges — Dark") {
@@ -48,5 +49,7 @@ struct StatusBagde: View {
         StatusBagde(status: .alive)
         StatusBagde(status: .dead)
         StatusBagde(status: .unknown)
-    }.padding().preferredColorScheme(.dark)
+    }
+    .padding()
+    .preferredColorScheme(.dark)
 }

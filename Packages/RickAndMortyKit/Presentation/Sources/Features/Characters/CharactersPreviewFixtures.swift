@@ -10,12 +10,12 @@ enum CharactersPreviewFixtures {
     )
 
     static func view(state: ViewState<[Character]>) -> some View {
-        let model = CharactersViewModel(
+        let viewModel = CharactersViewModel(
             useCase: SearchCharactersUseCase(repository: PreviewCharacterRepository()),
             initialState: state,
             debounce: {}
         )
-        return CharactersView(viewModel: model)
+        return CharactersView(viewModel: viewModel)
     }
 }
 

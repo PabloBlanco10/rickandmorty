@@ -4,31 +4,35 @@ import Domain
 @MainActor
 struct SearchViewModelFixture {
     let repository = ControlledCharacterRepository()
-    let model: CharactersViewModel
+    let viewModel: CharactersViewModel
 
     init(debounce: @escaping @Sendable () async throws -> Void = {}) {
-        model = CharactersViewModel(useCase: SearchCharactersUseCase(repository: repository), debounce: debounce)
+        viewModel = CharactersViewModel(useCase: SearchCharactersUseCase(repository: repository), debounce: debounce)
     }
 
     func load(ids: [Int] = [1], nextPage: Int? = 2) async {
-        let task = Task { await model.loadInitial() }
+        let task = Task { await viewModel.loadInitial() }
         await repository.waitUntilRequested()
         await repository.succeed(ids: ids, nextPage: nextPage)
         await task.value
     }
 
     var ids: [Int]? {
-        guard case let .loaded(characters) = model.state else { return nil }
+        guard case let .loaded(characters) = viewModel.state else {
+            return nil
+        }
         return characters.map(\.id)
     }
 
     var failure: CharactersError? {
-        guard case let .failed(error) = model.state else { return nil }
+        guard case let .failed(error) = viewModel.state else {
+            return nil
+        }
         return error as? CharactersError
     }
 
     var isLoading: Bool {
-        if case .loading = model.state {
+        if case .loading = viewModel.state {
             return true
         }
         return false

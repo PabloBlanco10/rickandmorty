@@ -2,7 +2,7 @@
 import Foundation
 import Testing
 
-struct ImageLoaderTests {
+struct URLSessionImageLoaderTests {
     @Test
     func loadsBytesThroughInjectedSessionUsingCacheFirstRequestPolicy() async throws {
         let session = makeSession()
@@ -27,7 +27,7 @@ struct ImageLoaderTests {
     }
 
     @Test
-    func preservesNativeURLSessionCancellationError() async throws {
+    func propagatesSimulatedCancelledURLError() async throws {
         let session = makeSession()
         defer { session.invalidateAndCancel() }
         let loader = URLSessionImageLoader(session: session)

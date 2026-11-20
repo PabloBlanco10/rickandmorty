@@ -130,6 +130,7 @@ Tests must validate observable behavior.
 ## Code Quality
 
 - Follow the existing SwiftLint and SwiftFormat configurations.
+- Prefer readable multiline formatting: separate conditions in complex guards, keep else clearly separated, and place SwiftUI modifiers on individual lines. Do not compress statements merely to reduce line count.
 - Prefer descriptive names and focused types.
 - Avoid force unwraps.
 - Avoid unused abstractions and premature generalization.

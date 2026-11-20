@@ -17,7 +17,9 @@ actor ControlledDebounce {
     }
 
     func waitUntilRequested(count: Int = 1) async {
-        guard calls < count else { return }
+        guard calls < count else {
+            return
+        }
         precondition(waiter == nil)
         await withCheckedContinuation { waiter = (count, $0) }
     }

@@ -22,9 +22,12 @@ public struct CharactersView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-                .refreshable { await viewModel.refresh() }
-                .task { await viewModel.loadInitial() }
-                .onDisappear { viewModel.cancel() }
+                .task {
+                    await viewModel.loadInitial()
+                }
+                .onDisappear {
+                    viewModel.cancel()
+                }
         }
     }
 
@@ -33,19 +36,24 @@ public struct CharactersView: View {
     }
 
     private var searchContent: some View {
-        resultList.searchable(
-            text: searchBinding, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search characters"
-        )
+        resultList
+            .searchable(
+                text: searchBinding, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search characters"
+            )
     }
 
     private var resultList: some View {
-        List { content }
-            .listStyle(.plain)
-            .overlay {
-                if viewModel.isInitialLoading {
-                    ProgressView().controlSize(.large).accessibilityLabel("Loading characters")
-                }
+        List {
+            content
+        }
+        .listStyle(.plain)
+        .overlay {
+            if viewModel.isInitialLoading {
+                ProgressView()
+                    .controlSize(.large)
+                    .accessibilityLabel("Loading characters")
             }
+        }
     }
 
     @ViewBuilder
@@ -59,16 +67,14 @@ public struct CharactersView: View {
             } description: {
                 Text(CharactersError(error).message)
             } actions: {
-                Button("Retry loading characters") { Task { await viewModel.retrySearch() } }
+                Button("Retry loading characters") {
+                    Task {
+                        await viewModel.retrySearch()
+                    }
+                }
             }
             .listRowSeparator(.hidden)
         case let .loaded(characters):
-            if let error = viewModel.refreshError {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(error.message)
-                    Button("Retry refresh") { Task { await viewModel.refresh() } }
-                }
-            }
             if characters.isEmpty {
                 ContentUnavailableView {
                     Label("No characters found", systemImage: "magnifyingglass")
@@ -79,7 +85,11 @@ public struct CharactersView: View {
             } else {
                 ForEach(characters) { character in
                     CharacterRow(character: character, imageLoader: imageLoader)
-                        .onAppear { Task { await viewModel.loadNextPage(approaching: character.id) } }
+                        .onAppear {
+                            Task {
+                                await viewModel.loadNextPage(approaching: character.id)
+                            }
+                        }
                 }
             }
             paginationFooter
@@ -88,15 +98,18 @@ public struct CharactersView: View {
 
     @ViewBuilder
     private var paginationFooter: some View {
-        if let error = viewModel.paginationError {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(error.message)
-                Button("Retry loading more") { Task { await viewModel.retryPagination() } }
+        if viewModel.paginationError != nil {
+            PaginationErrorView {
+                Task {
+                    await viewModel.retryPagination()
+                }
             }
+            .listRowSeparator(.hidden)
         } else if viewModel.isLoadingNextPage {
             HStack {
                 Spacer()
-                ProgressView().accessibilityLabel("Loading more characters")
+                ProgressView()
+                    .accessibilityLabel("Loading more characters")
                 Spacer()
             }
         }
@@ -114,7 +127,8 @@ public struct CharactersView: View {
 
 #Preview("Populated — Dark, large text") {
     CharactersPreviewFixtures.view(state: .loaded([CharactersPreviewFixtures.character]))
-        .preferredColorScheme(.dark).dynamicTypeSize(.accessibility3)
+        .preferredColorScheme(.dark)
+        .dynamicTypeSize(.accessibility3)
 }
 
 #Preview("Empty") {

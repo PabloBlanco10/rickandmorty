@@ -23,7 +23,8 @@ public struct URLSessionImageLoader: ImageLoader {
         let request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad)
         let (data, response) = try await session.data(for: request)
         guard let response = response as? HTTPURLResponse,
-              (200 ..< 300).contains(response.statusCode), !data.isEmpty
+              (200 ..< 300).contains(response.statusCode),
+              !data.isEmpty
         else { throw URLError(.badServerResponse) }
         return data
     }

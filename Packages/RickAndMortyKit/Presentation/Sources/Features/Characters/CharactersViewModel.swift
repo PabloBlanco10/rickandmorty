@@ -8,9 +8,7 @@ public final class CharactersViewModel {
     private(set) var searchText = ""
     private(set) var state: ViewState<[Character]>
     private(set) var nextPage: Int?
-    private(set) var isRefreshing = false
     private(set) var isLoadingNextPage = false
-    private(set) var refreshError: CharactersError?
     private(set) var paginationError: CharactersError?
 
     @ObservationIgnored private let useCase: SearchCharactersUseCase
@@ -44,7 +42,9 @@ public final class CharactersViewModel {
     }
 
     func loadInitial() async {
-        guard case .idle = state else { return }
+        guard case .idle = state else {
+            return
+        }
         await wait(for: startLoading())
     }
 
@@ -52,7 +52,9 @@ public final class CharactersViewModel {
     func updateSearchText(_ text: String) {
         searchText = text
         let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard normalized != query else { return }
+        guard normalized != query else {
+            return
+        }
         query = normalized
         _ = startLoading(debounced: true)
     }
@@ -63,31 +65,38 @@ public final class CharactersViewModel {
 
     func loadNextPage(approaching characterID: Int) async {
         guard case let .loaded(characters) = state,
-              characters.suffix(3).contains(where: { $0.id == characterID }) else { return }
+              characters.suffix(3).contains(where: { $0.id == characterID })
+        else {
+            return
+        }
         await loadNextPage()
     }
 
     private func loadNextPage() async {
-        guard operation == nil, paginationError == nil,
-              case .loaded = state, let nextPage else { return }
+        guard operation == nil,
+              paginationError == nil,
+              case .loaded = state,
+              let nextPage
+        else {
+            return
+        }
         await wait(for: startLoading(page: nextPage))
     }
 
     func retryPagination() async {
-        guard operation == nil, paginationError != nil else { return }
+        guard operation == nil,
+              paginationError != nil
+        else {
+            return
+        }
         paginationError = nil
         await loadNextPage()
-    }
-
-    func refresh() async {
-        await wait(for: startLoading(policy: .reloadIgnoringCache))
     }
 
     func cancel() {
         generation = UUID()
         operation?.cancel()
         operation = nil
-        isRefreshing = false
         isLoadingNextPage = false
         if case .loading = state {
             state = .idle
@@ -95,20 +104,14 @@ public final class CharactersViewModel {
     }
 
     private func startLoading(
-        page: Int = 1, policy: FetchPolicy = .cacheFirst, debounced: Bool = false
+        page: Int = 1, debounced: Bool = false
     ) -> Task<Void, Never> {
         cancel()
         let token = generation
         let query = query
-        refreshError = nil
         paginationError = nil
         if page > 1 {
             isLoadingNextPage = true
-        } else if policy == .reloadIgnoringCache {
-            isRefreshing = true
-            if case .loaded = state {} else {
-                state = .loading
-            }
         } else {
             state = .loading
             nextPage = nil
@@ -122,12 +125,20 @@ public final class CharactersViewModel {
                     try await debounce()
                 }
                 try Task.checkCancellation()
-                let result = try await useCase.execute(query: query, page: page, policy: policy)
+                let result = try await useCase.execute(query: query, page: page, policy: .cacheFirst)
                 try Task.checkCancellation()
-                guard let self, generation == token else { return }
+                guard let self,
+                      generation == token
+                else {
+                    return
+                }
                 accept(result, page: page)
             } catch {
-                guard let self, generation == token else { return }
+                guard let self,
+                      generation == token
+                else {
+                    return
+                }
                 if error is CancellationError || Task.isCancelled {
                     if case .loading = state {
                         state = .idle
@@ -143,7 +154,9 @@ public final class CharactersViewModel {
     }
 
     private func accept(_ result: CharacterPage, page: Int) {
-        if page > 1, case let .loaded(existing) = state {
+        if page > 1,
+           case let .loaded(existing) = state
+        {
             var ids = Set(existing.map(\.id))
             state = .loaded(existing + result.characters.filter { ids.insert($0.id).inserted })
         } else {
@@ -155,17 +168,16 @@ public final class CharactersViewModel {
     private func show(_ error: CharactersError, page: Int) {
         if page > 1 {
             paginationError = error
-        } else if case .loaded = state {
-            refreshError = error
         } else {
             state = .failed(error)
         }
     }
 
     private func finish(_ token: UUID) {
-        guard generation == token else { return }
+        guard generation == token else {
+            return
+        }
         operation = nil
-        isRefreshing = false
         isLoadingNextPage = false
     }
 
