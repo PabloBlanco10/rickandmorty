@@ -268,7 +268,7 @@ Run all three package test targets through the main app scheme from the reposito
 ```bash
 xcodebuild -project RickAndMorty.xcodeproj \
   -scheme RickAndMorty \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4' \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4.1' \
   CODE_SIGNING_ALLOWED=NO test
 ```
 

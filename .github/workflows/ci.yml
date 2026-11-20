@@ -38,7 +38,7 @@ jobs:
         run: |
           xcodebuild -project RickAndMorty.xcodeproj \
             -scheme RickAndMorty \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4' \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4.1' \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -resultBundlePath "$RUNNER_TEMP/FoundationTests.xcresult" \
             CODE_SIGNING_ALLOWED=NO test
