@@ -1,6 +1,7 @@
 import Domain
 import Foundation
 
+/// A superseded response may still reach its caller, but cannot replace newer cached data.
 public struct RickAndMortyCharacterRepository: CharacterRepository {
     private let baseURL: URL
     private let client: HTTPClient
@@ -31,8 +32,6 @@ public struct RickAndMortyCharacterRepository: CharacterRepository {
         self.detailCache = detailCache
     }
 
-    /// Reads valid domain pages or requests a replacement. A superseded response can
-    /// still be returned to its caller, but cannot replace newer cached data.
     public func searchCharacters(query: String, page: Int, policy: FetchPolicy) async throws -> CharacterPage {
         try Task.checkCancellation()
         let key = SearchCacheKey(query: query, page: page)
@@ -44,7 +43,9 @@ public struct RickAndMortyCharacterRepository: CharacterRepository {
             throw Self.repositoryError(for: error)
         }
 
-        if policy == .cacheFirst, let cached = await cache.value(for: key) {
+        if policy == .cacheFirst,
+           let cached = await cache.value(for: key)
+        {
             try Task.checkCancellation()
             return cached
         }
@@ -115,7 +116,10 @@ public struct RickAndMortyCharacterRepository: CharacterRepository {
             try Task.checkCancellation()
             if let error = error as? HTTPClientError {
                 if case let .httpStatus(code, body) = error,
-                   code == 404, page == 1, !query.isEmpty, Self.isNoMatchResponse(body)
+                   code == 404,
+                   page == 1,
+                   !query.isEmpty,
+                   Self.isNoMatchResponse(body)
                 {
                     return CharacterPage(characters: [], nextPage: nil)
                 }

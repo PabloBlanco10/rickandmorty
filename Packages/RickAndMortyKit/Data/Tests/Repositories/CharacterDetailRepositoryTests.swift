@@ -36,6 +36,22 @@ struct CharacterDetailRepositoryTests {
         #expect(await transport.requests.isEmpty)
     }
 
+    @Test(arguments: [true, false])
+    func cachedDetailDoesNotBypassEndpointValidation(invalidID: Bool) async throws {
+        let transport = try HTTPTransportSpy(response: APIResponseFixture.response())
+        let id = invalidID ? 0 : 1
+        let base = invalidID ? "https://example.com/api" : "https://example.com/api?unexpected=query"
+        let fixture = try DetailRepositoryFixture(transport: transport, base: base)
+        let character = try #require(SearchRepositoryFixture.page().characters.first)
+        try await fixture.cache.insert(character, for: id)
+
+        await #expect(throws: CharacterRepositoryError.invalidRequest) {
+            try await fixture.repository.character(id: id, policy: .cacheFirst)
+        }
+        #expect(await transport.requests.isEmpty)
+        #expect(await fixture.cache.value(for: id) == character)
+    }
+
     @Test(arguments: [404, 429, 500])
     func statusFailuresIncludingNoMatch404AreNotCached(status: Int) async throws {
         let transport = try HTTPTransportSpy(
