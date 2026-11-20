@@ -2,22 +2,32 @@ import Domain
 import SwiftUI
 
 public struct CharactersView: View {
+    @State private var path: [Int] = []
+    private let detailUseCase: GetCharacterDetailUseCase
     private let viewModel: CharactersViewModel
     private let imageLoader: (any ImageLoader)?
 
-    public init(viewModel: CharactersViewModel, imageLoader: any ImageLoader) {
+    public init(
+        viewModel: CharactersViewModel, imageLoader: any ImageLoader, detailUseCase: GetCharacterDetailUseCase
+    ) {
         self.viewModel = viewModel
         self.imageLoader = imageLoader
+        self.detailUseCase = detailUseCase
     }
 
-    init(viewModel: CharactersViewModel) {
+    init(viewModel: CharactersViewModel, detailUseCase: GetCharacterDetailUseCase) {
         self.viewModel = viewModel
         imageLoader = nil
+        self.detailUseCase = detailUseCase
     }
 
     public var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             searchContent
+                .navigationDestination(for: Int.self) { id in
+                    CharacterDetailView(id: id, useCase: detailUseCase, imageLoader: imageLoader)
+                        .id(id)
+                }
                 .navigationTitle("Characters")
                 .navigationBarTitleDisplayMode(.inline)
                 .textInputAutocapitalization(.never)
@@ -84,12 +94,18 @@ public struct CharactersView: View {
                 .listRowSeparator(.hidden)
             } else {
                 ForEach(characters) { character in
-                    CharacterRow(character: character, imageLoader: imageLoader)
-                        .onAppear {
-                            Task {
-                                await viewModel.loadNextPage(approaching: character.id)
-                            }
+                    Button {
+                        path.append(character.id)
+                    } label: {
+                        CharacterRow(character: character, imageLoader: imageLoader)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .onAppear {
+                        Task {
+                            await viewModel.loadNextPage(approaching: character.id)
                         }
+                    }
                 }
             }
             paginationFooter

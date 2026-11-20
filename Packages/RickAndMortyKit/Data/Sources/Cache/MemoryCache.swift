@@ -36,10 +36,10 @@ actor MemoryCache<Key: Hashable & Sendable, Value: Sendable> {
         return entry.value
     }
 
+    /// Explicit replacement restarts the TTL and supersedes pending writes for this key.
     func insert(_ value: Value, for key: Key) async throws {
         let instant = await now()
         try Task.checkCancellation()
-        // An explicit replacement supersedes any older pending write to this key.
         writes.removeValue(forKey: key)
         entries[key] = Entry(value: value, expiresAt: instant.advanced(by: ttl))
     }

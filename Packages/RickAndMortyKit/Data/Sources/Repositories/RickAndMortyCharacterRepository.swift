@@ -1,10 +1,12 @@
 import Domain
 import Foundation
 
+/// A superseded response may still reach its caller, but cannot replace newer cached data.
 public struct RickAndMortyCharacterRepository: CharacterRepository {
     private let baseURL: URL
     private let client: HTTPClient
     private let cache: MemoryCache<SearchCacheKey, CharacterPage>
+    private let detailCache: MemoryCache<Int, Domain.Character>
 
     /// baseURL is the API root (for production, https://rickandmortyapi.com/api).
     /// The default session has no HTTP cache. Injected sessions are also subject
@@ -13,22 +15,23 @@ public struct RickAndMortyCharacterRepository: CharacterRepository {
         self.init(
             baseURL: baseURL,
             client: HTTPClient(transport: URLSessionTransport(session: session)),
-            cache: MemoryCache(ttl: cacheTTL)
+            cache: MemoryCache(ttl: cacheTTL),
+            detailCache: MemoryCache(ttl: cacheTTL)
         )
     }
 
     init(
         baseURL: URL,
         client: HTTPClient,
-        cache: MemoryCache<SearchCacheKey, CharacterPage> = MemoryCache()
+        cache: MemoryCache<SearchCacheKey, CharacterPage> = MemoryCache(),
+        detailCache: MemoryCache<Int, Domain.Character> = MemoryCache()
     ) {
         self.baseURL = baseURL
         self.client = client
         self.cache = cache
+        self.detailCache = detailCache
     }
 
-    /// Reads valid domain pages or requests a replacement. A superseded response can
-    /// still be returned to its caller, but cannot replace newer cached data.
     public func searchCharacters(query: String, page: Int, policy: FetchPolicy) async throws -> CharacterPage {
         try Task.checkCancellation()
         let key = SearchCacheKey(query: query, page: page)
@@ -40,7 +43,9 @@ public struct RickAndMortyCharacterRepository: CharacterRepository {
             throw Self.repositoryError(for: error)
         }
 
-        if policy == .cacheFirst, let cached = await cache.value(for: key) {
+        if policy == .cacheFirst,
+           let cached = await cache.value(for: key)
+        {
             try Task.checkCancellation()
             return cached
         }
@@ -57,6 +62,48 @@ public struct RickAndMortyCharacterRepository: CharacterRepository {
         }
     }
 
+    public func character(id: Int, policy: FetchPolicy) async throws -> Domain.Character {
+        try Task.checkCancellation()
+        let url: URL
+        do {
+            url = try CharacterEndpoint.detail(baseURL: baseURL, id: id)
+        } catch let error as HTTPClientError {
+            throw Self.repositoryError(for: error)
+        }
+        if policy == .cacheFirst,
+           let cached = await detailCache.value(for: id)
+        {
+            try Task.checkCancellation()
+            return cached
+        }
+
+        let token = try await detailCache.beginWrite(for: id)
+        do {
+            let dto: CharacterDTO = try await client.get(from: url)
+            let result = try dto.toDomain()
+            guard result.id == id else {
+                throw CharacterMappingError.invalidCharacter
+            }
+            try Task.checkCancellation()
+            _ = try await detailCache.commit(result, using: token)
+            try Task.checkCancellation()
+            return result
+        } catch {
+            await detailCache.finishWrite(token)
+            if error is CancellationError || Task.isCancelled {
+                throw CancellationError()
+            }
+            if let error = error as? HTTPClientError {
+                // Unlike filtered search, a detail 404 is always a service failure.
+                throw Self.repositoryError(for: error)
+            }
+            if error is CharacterMappingError {
+                throw CharacterRepositoryError.invalidData
+            }
+            throw CharacterRepositoryError.unexpected
+        }
+    }
+
     private func fetchPage(from url: URL, query: String, page: Int) async throws -> CharacterPage {
         do {
             let dto: CharacterPageDTO = try await client.get(from: url)
@@ -69,7 +116,10 @@ public struct RickAndMortyCharacterRepository: CharacterRepository {
             try Task.checkCancellation()
             if let error = error as? HTTPClientError {
                 if case let .httpStatus(code, body) = error,
-                   code == 404, page == 1, !query.isEmpty, Self.isNoMatchResponse(body)
+                   code == 404,
+                   page == 1,
+                   !query.isEmpty,
+                   Self.isNoMatchResponse(body)
                 {
                     return CharacterPage(characters: [], nextPage: nil)
                 }

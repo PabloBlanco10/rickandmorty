@@ -1,6 +1,6 @@
 /// Failures callers can handle without depending on networking infrastructure.
 public enum CharacterRepositoryError: Error, Equatable, Sendable {
-    /// A page below one or an invalid API base URL.
+    /// A page or character ID below one, or an invalid API base URL.
     case invalidRequest
     /// A connection could not be established, was lost, or timed out.
     case networkUnavailable

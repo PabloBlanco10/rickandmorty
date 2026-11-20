@@ -46,7 +46,7 @@ Use constructor-based dependency injection. Avoid service locators and global si
 - Use the Observation framework with @Observable ViewModels.
 - Follow MVVM with clear state ownership.
 - Use ViewState for initial loading, success, empty and failure behavior as appropriate.
-- Keep refresh and pagination state separate from loaded content.
+- Keep pagination progress and errors separate from loaded content.
 - Use native NavigationStack for navigation.
 - Use native SwiftUI components when possible.
 - Do not place networking or business logic inside Views.
@@ -83,11 +83,11 @@ Include relevant previews for loading, loaded, empty and error states when appli
 - Support remote character search with debounce and cancellation.
 - Support pagination using API metadata.
 - Prevent duplicate page requests and stale results.
-- Support pull to refresh that bypasses valid cached data.
+- Use cacheFirst in Presentation; retain reloadIgnoringCache in Domain/Data for explicit network replacements.
 - Cache paginated domain responses by normalized query and page.
 - Use an in-memory actor-based cache with configurable TTL.
-- Ensure explicit refresh cannot be undone by obsolete in-flight operations.
-- Preserve previously loaded content after refresh or pagination failures.
+- Prevent obsolete in-flight operations from overwriting newer cached results.
+- Preserve previously loaded content after pagination failures.
 
 Do not introduce persistent storage unless explicitly approved.
 
@@ -97,7 +97,7 @@ Do not introduce persistent storage unless explicitly approved.
 - Do not silently swallow failures.
 - Treat expected task cancellation separately from user-facing errors.
 - Distinguish empty search results from unexpected failures.
-- Preserve existing content when pagination or refresh fails.
+- Preserve existing content when pagination fails.
 - Provide understandable retry behavior.
 
 ## Testing
@@ -150,7 +150,7 @@ Tests must validate observable behavior.
 - Avoid `open` unless external subclassing is explicitly required.
 - Mark classes `final` unless a concrete inheritance requirement is documented.
 - SwiftUI View already guarantees MainActor isolation. Avoid redundant view-level
-  annotations; retain explicit `@MainActor` on future observable ViewModels.
+  annotations; retain explicit `@MainActor` on observable ViewModels.
 
 ## Workflow
 
@@ -194,13 +194,13 @@ Prefer a simpler, defensible solution when two implementations satisfy the same 
   functionality.
 - Keep Character and CharacterPage immutable and Sendable. Origin and location
   are display names; nextPage is a one-based page number or nil. Keep repository
-  fetch policy explicit; the search use case alone defaults to cacheFirst.
+  fetch policy explicit; both search and detail use cases default to cacheFirst.
 - ViewState belongs to Presentation. Use typed presentation errors when concrete
   mappings justify them. Do not compare localized error text in tests.
 - Treat only the character-search endpoint's verified no-match HTTP 404 as empty
   results. Do not convert arbitrary 404 responses into success.
 - Cache TTL defaults to three minutes and must be configurable. Keep query/page
-  entries independent; refreshing one page must not invalidate other pages or
+  entries independent; replacing one page must not invalidate other pages or
   their pending writes. Discuss request deduplication before implementing it.
 - Include Light and Dark previews for meaningful views/components, plus relevant
   state and Dynamic Type previews. Static views need no mock dependency. When
@@ -216,8 +216,8 @@ PR descriptions. App Debug/Release use Swift 6, complete strict concurrency,
 MainActor default isolation, approachable concurrency enabled, and member import
 visibility enabled. Retain these settings unless a concrete need justifies a
 change. SwiftPM uses tools 6.0 and language mode v6 with nonisolated defaults;
-app settings do not configure package compilation. Future cache state uses its
-own actor rather than MainActor isolation.
+app settings do not configure package compilation. Cache state uses its own actor
+rather than MainActor isolation.
 
 Pinned development tools are SwiftFormat 0.64.5 and SwiftLint 0.63.2. Obtain their
 release executables from the upstream repositories and place them on PATH. Run
@@ -268,7 +268,7 @@ Run all three package test targets through the main app scheme from the reposito
 ```bash
 xcodebuild -project RickAndMorty.xcodeproj \
   -scheme RickAndMorty \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4' \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4.1' \
   CODE_SIGNING_ALLOWED=NO test
 ```
 
@@ -289,17 +289,17 @@ validation separately: deliberately skipped CI is not passing CI.
   protocol, endpoint framework, or type erasure without a concrete requirement.
 - Construct a decoder for each response. Keep requests and mapping nonisolated;
   do not introduce actors or detached tasks for immutable networking state.
-- The default URLSession is ephemeral, has no URLCache, and ignores local cached
+- The JSON API default URLSession is ephemeral, has no URLCache, and ignores local cached
   data. Every request independently sets reloadIgnoringLocalCacheData and the
   Cache-Control: no-cache header, including when a session is injected.
-- cacheFirst returns an unexpired domain page before networking; reloadIgnoringCache
+- cacheFirst returns an unexpired domain result before networking; reloadIgnoringCache
   bypasses it. Network requests retain the same HTTP-cache bypass under either
   policy. Failed replacements preserve existing values and their original TTL.
 - Check cancellation before requests, after transport completion, and before
   returning mapped results. Normalize URLSession's cancelled URLError and preserve
   CancellationError. Test late successful completion using controlled continuations.
 - Translate infrastructure failures to CharacterRepositoryError: invalidRequest
-  for invalid page/base URL; networkUnavailable for connection loss, unavailable
+  for invalid page/character ID/base URL; networkUnavailable for connection loss, unavailable
   connections and timeouts; serviceFailure for HTTP rejection or other URLSession
   failures such as TLS rejection; invalidData for non-HTTP, decode or mapping
   failures; unexpected only for unrecognized non-URLSession transport errors.
@@ -348,11 +348,11 @@ guarantee that every run produces a different order.
   actor-isolated segment with no intervening await.
 - Failed/cancelled replacements preserve existing entries and their original TTL.
   Independent page lifetimes do not guarantee a consistent server snapshot across
-  pages. Presentation owners reset visible pagination on new searches/refreshes;
+  pages. Presentation owners reset visible pagination on new searches;
   cache storage does not coordinate page generations.
 - Complete or release write tokens on all paths. Cleanup may revoke only its own
   generation, so an older failure or cancellation cannot revoke a newer write.
-- A discarded cache write does not transfer ownership of a caller's task. Future
+- A discarded cache write does not transfer ownership of a caller's task.
   UI owners must cancel obsolete searches and gate stale UI updates themselves.
 - Test reverse completion order, independent page lifetimes, cancellation and
   clock-induced actor reentrancy with controlled continuations. Keep race tests
