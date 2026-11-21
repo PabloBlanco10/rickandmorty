@@ -1,15 +1,72 @@
 included:
-  - RickAndMorty/RickAndMorty
+  - RickAndMorty
+  - RickAndMortyUITests
   - Packages/RickAndMortyKit
-excluded:
-  - Packages/RickAndMortyKit/.build
-  - Packages/RickAndMortyKit/.swiftpm
-# Layout and whitespace are owned by SwiftFormat.
+# SwiftFormat owns brace placement and trailing commas.
 disabled_rules:
   - trailing_comma
   - opening_brace
   - statement_position
-line_length: 140
+excluded:
+  - Packages/RickAndMortyKit/.build
+  - Packages/RickAndMortyKit/.swiftpm
+  - .build
+  - "**/.build"
+  - DerivedData
+  - build
+  - Pods
+  - "**/*.generated.swift"
+
+opt_in_rules:
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - empty_count
+  - first_where
+  - sorted_first_last
+  - contains_over_filter_count
+  - redundant_nil_coalescing
+  - unneeded_parentheses_in_closure_argument
+  - toggle_bool
+  - fatal_error_message
+  - private_swiftui_state
+  - accessibility_label_for_image
+  - accessibility_trait_for_button
+  - file_types_order
+  - type_contents_order
+  - multiline_parameters
+  - closure_spacing
+  - overridden_super_call
+  - weak_delegate
+  - discouraged_optional_boolean
+
+analyzer_rules:
+  - unused_declaration
+  - unused_import
+
+line_length:
+  warning: 140
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+
+file_length:
+  warning: 400
+  error: 800
+
+type_body_length:
+  warning: 250
+  error: 400
+
+function_body_length:
+  warning: 50
+  error: 100
+
+cyclomatic_complexity:
+  warning: 10
+  error: 20
+
 identifier_name:
-  excluded:
-    - id
+  min_length: 2
+  excluded: [id, x, y]
+
+reporter: xcode

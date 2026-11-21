@@ -2,6 +2,10 @@ import Foundation
 import Testing
 
 enum APIResponseFixture {
+    static var noMatches: Foundation.Data {
+        Foundation.Data(#"{"error":"There is nothing here"}"#.utf8)
+    }
+
     static func url(_ string: String = "https://example.com/api/character") throws -> URL {
         try #require(URL(string: string))
     }
@@ -32,9 +36,5 @@ enum APIResponseFixture {
         return try JSONSerialization.data(withJSONObject: [
             "info": info, "results": empty ? [] : [character]
         ])
-    }
-
-    static var noMatches: Foundation.Data {
-        Foundation.Data(#"{"error":"There is nothing here"}"#.utf8)
     }
 }

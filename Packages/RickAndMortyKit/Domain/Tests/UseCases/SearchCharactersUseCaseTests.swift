@@ -1,6 +1,9 @@
 import Domain
-import Foundation
 import Testing
+
+private enum RepositoryError: Error {
+    case unavailable
+}
 
 struct SearchCharactersUseCaseTests {
     @Test(arguments: [
@@ -13,24 +16,24 @@ struct SearchCharactersUseCaseTests {
 
         _ = try await useCase.execute(query: input, page: 1)
 
-        #expect(await repository.requests == [.init(query: expected, page: 1, policy: .cacheFirst)])
+        #expect(await repository.requests == [.init(query: expected, page: 1)])
     }
 
-    @Test(arguments: [FetchPolicy.cacheFirst, .reloadIgnoringCache])
-    func delegatesParametersAndReturnsCompletePage(policy: FetchPolicy) async throws {
+    @Test
+    func delegatesParametersAndReturnsCompletePage() async throws {
         let character = try Domain.Character.fixture()
         let expected = CharacterPage(characters: [character], nextPage: 3)
         let repository = CharacterRepositorySpy(result: .success(expected))
         let useCase = SearchCharactersUseCase(repository: repository)
 
-        let result = try await useCase.execute(query: " Rick ", page: 2, policy: policy)
+        let result = try await useCase.execute(query: " Rick ", page: 2)
 
         #expect(result == expected)
-        #expect(await repository.requests == [CharacterRepositorySpy.Request(query: "rick", page: 2, policy: policy)])
+        #expect(await repository.requests == [CharacterRepositorySpy.Request(query: "rick", page: 2)])
     }
 
     @Test
-    func defaultsToCacheFirstAndPreservesEmptyQuery() async throws {
+    func preservesEmptyQuery() async throws {
         let expected = CharacterPage(characters: [], nextPage: nil)
         let repository = CharacterRepositorySpy(result: .success(expected))
         let useCase = SearchCharactersUseCase(repository: repository)
@@ -38,7 +41,7 @@ struct SearchCharactersUseCaseTests {
         let result = try await useCase.execute(query: "", page: 1)
 
         #expect(result == expected)
-        #expect(await repository.requests == [CharacterRepositorySpy.Request(query: "", page: 1, policy: .cacheFirst)])
+        #expect(await repository.requests == [CharacterRepositorySpy.Request(query: "", page: 1)])
     }
 
     @Test
@@ -51,8 +54,7 @@ struct SearchCharactersUseCaseTests {
         }
         #expect(await repository.requests == [CharacterRepositorySpy.Request(
             query: "morty",
-            page: 1,
-            policy: .cacheFirst
+            page: 1
         )])
     }
 
@@ -66,8 +68,4 @@ struct SearchCharactersUseCaseTests {
         }
         #expect(await repository.requests.count == 1)
     }
-}
-
-private enum RepositoryError: Error {
-    case unavailable
 }

@@ -23,5 +23,5 @@ check_tool() {
 
 check_tool swiftformat "$SWIFTFORMAT_VERSION" --version
 check_tool swiftlint "$SWIFTLINT_VERSION" version
-swiftformat --lint --cache ignore RickAndMorty/RickAndMorty Packages/RickAndMortyKit
+swiftformat --lint --cache ignore RickAndMorty Packages/RickAndMortyKit RickAndMortyUITests
 swiftlint lint --strict --no-cache --config .swiftlint.yml

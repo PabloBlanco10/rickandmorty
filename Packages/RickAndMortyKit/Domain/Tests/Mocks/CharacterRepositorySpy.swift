@@ -4,7 +4,6 @@ actor CharacterRepositorySpy: CharacterRepository {
     struct Request: Equatable, Sendable {
         let query: String
         let page: Int
-        let policy: FetchPolicy
     }
 
     private let result: Result<CharacterPage, any Error>
@@ -14,8 +13,8 @@ actor CharacterRepositorySpy: CharacterRepository {
         self.result = result
     }
 
-    func searchCharacters(query: String, page: Int, policy: FetchPolicy) async throws -> CharacterPage {
-        requests.append(Request(query: query, page: page, policy: policy))
+    func searchCharacters(query: String, page: Int) async throws -> CharacterPage {
+        requests.append(Request(query: query, page: page))
         return try result.get()
     }
 }

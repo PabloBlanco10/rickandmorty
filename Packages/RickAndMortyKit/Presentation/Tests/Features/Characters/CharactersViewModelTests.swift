@@ -10,7 +10,7 @@ struct CharactersViewModelTests {
         let load = Task { await fixture.viewModel.loadInitial() }
         await fixture.repository.waitUntilRequested()
         #expect(fixture.isLoading)
-        #expect(await fixture.repository.requests == [.init(query: "", page: 1, policy: .cacheFirst)])
+        #expect(await fixture.repository.requests == [.init(query: "", page: 1)])
         await fixture.repository.succeed(ids: [1, 2], nextPage: 2)
         await load.value
         #expect(fixture.ids == [1, 2])
@@ -42,7 +42,6 @@ struct CharactersViewModelTests {
         await fixture.repository.succeed(ids: [1], at: 1)
         await retry.value
         #expect(fixture.ids == [1])
-        #expect(await fixture.repository.requests.last?.policy == .cacheFirst)
     }
 
     @Test
@@ -77,7 +76,8 @@ struct CharactersViewModelTests {
 
     @Test(arguments: [false, true], [false, true])
     func obsoleteSearchCannotChangeNewQueryState(olderFails: Bool, olderFinishesFirst: Bool) async throws {
-        let fixture = SearchViewModelFixture()
+        var announcements: [String] = []
+        let fixture = SearchViewModelFixture(announce: { announcements.append($0) })
         fixture.viewModel.updateSearchText("Rick")
         let old = try #require(fixture.viewModel.operation)
         await fixture.repository.waitUntilRequested()
@@ -106,6 +106,7 @@ struct CharactersViewModelTests {
         #expect(fixture.ids == [2])
         #expect(fixture.viewModel.nextPage == nil)
         #expect(fixture.failure == nil)
+        #expect(announcements == ["1 character found."])
     }
 
     @Test
@@ -122,7 +123,7 @@ struct CharactersViewModelTests {
         await debounce.waitUntilRequested()
         await debounce.release()
         await fixture.repository.waitUntilRequested(count: 2)
-        #expect(await fixture.repository.requests.last == .init(query: "morty", page: 1, policy: .cacheFirst))
+        #expect(await fixture.repository.requests.last == .init(query: "morty", page: 1))
         await fixture.repository.succeed(ids: [], at: 1)
         await search.value
         #expect(fixture.ids == [])
@@ -130,13 +131,15 @@ struct CharactersViewModelTests {
 
     @Test
     func lifecycleCancellationReachesRepositoryAndAllowsReload() async {
-        let fixture = SearchViewModelFixture()
+        var announcements: [String] = []
+        let fixture = SearchViewModelFixture(announce: { announcements.append($0) })
         let load = Task { await fixture.viewModel.loadInitial() }
         await fixture.repository.waitUntilRequested()
         load.cancel()
         await fixture.repository.succeed(ids: [1])
         await load.value
         #expect(await fixture.repository.cancelledRequests == [0])
+        #expect(announcements.isEmpty)
         #expect(fixture.ids == nil)
         #expect(fixture.failure == nil)
         let retry = Task { await fixture.viewModel.loadInitial() }
@@ -144,5 +147,27 @@ struct CharactersViewModelTests {
         await fixture.repository.succeed(ids: [2], at: 1)
         await retry.value
         #expect(fixture.ids == [2])
+    }
+
+    @Test
+    func announcesAcceptedSearchAndEmptyResultsButNotPagination() async throws {
+        var announcements: [String] = []
+        let fixture = SearchViewModelFixture(announce: { announcements.append($0) })
+        await fixture.load(ids: [1, 2], nextPage: 2)
+        #expect(announcements == ["2 characters found."])
+
+        let pagination = Task { await fixture.viewModel.loadNextPage(approaching: 2) }
+        await fixture.repository.waitUntilRequested(count: 2)
+        await fixture.repository.succeed(ids: [3], at: 1)
+        await pagination.value
+        #expect(announcements == ["2 characters found."])
+
+        fixture.viewModel.updateSearchText("No match")
+        let search = try #require(fixture.viewModel.operation)
+        await fixture.repository.waitUntilRequested(count: 3)
+        await fixture.repository.succeed(ids: [], at: 2)
+        await search.value
+        #expect(announcements == ["2 characters found.", "No characters found."])
+        #expect(fixture.viewModel.state == .loaded([]))
     }
 }

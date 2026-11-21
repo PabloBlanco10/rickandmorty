@@ -1,6 +1,5 @@
 @testable import Data
 import Domain
-import Foundation
 import Testing
 
 struct MemoryCacheTests {

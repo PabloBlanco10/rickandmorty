@@ -1,3 +1,4 @@
+import Accessibility
 import Domain
 import Foundation
 import Observation
@@ -12,14 +13,24 @@ public final class CharactersViewModel {
     private(set) var paginationError: CharactersError?
 
     @ObservationIgnored private let useCase: SearchCharactersUseCase
+    @ObservationIgnored private let announce: @MainActor (String) -> Void
     @ObservationIgnored private let debounce: @Sendable () async throws -> Void
     // Read-only inside the module so tests can await exact completion after a Void UI action.
     @ObservationIgnored private(set) var operation: Task<Void, Never>?
     @ObservationIgnored private var generation = UUID()
     @ObservationIgnored private var query = ""
 
+    var isInitialLoading: Bool {
+        switch state {
+        case .idle, .loading: true
+        default: false
+        }
+    }
+
     public convenience init(useCase: SearchCharactersUseCase) {
-        self.init(useCase: useCase, debounce: {
+        self.init(useCase: useCase, announce: {
+            AccessibilityNotification.Announcement($0).post()
+        }, debounce: {
             try await ContinuousClock().sleep(for: .milliseconds(300))
         })
     }
@@ -27,18 +38,13 @@ public final class CharactersViewModel {
     init(
         useCase: SearchCharactersUseCase,
         initialState: ViewState<[Character]> = .idle,
+        announce: @escaping @MainActor (String) -> Void = { _ in },
         debounce: @escaping @Sendable () async throws -> Void
     ) {
         self.useCase = useCase
         self.debounce = debounce
+        self.announce = announce
         state = initialState
-    }
-
-    var isInitialLoading: Bool {
-        switch state {
-        case .idle, .loading: true
-        default: false
-        }
     }
 
     func loadInitial() async {
@@ -125,7 +131,7 @@ public final class CharactersViewModel {
                     try await debounce()
                 }
                 try Task.checkCancellation()
-                let result = try await useCase.execute(query: query, page: page, policy: .cacheFirst)
+                let result = try await useCase.execute(query: query, page: page)
                 try Task.checkCancellation()
                 guard let self,
                       generation == token
@@ -161,6 +167,8 @@ public final class CharactersViewModel {
             state = .loaded(existing + result.characters.filter { ids.insert($0.id).inserted })
         } else {
             state = .loaded(result.characters)
+            let count = result.characters.count
+            announce(count == 0 ? "No characters found." : "\(count) character\(count == 1 ? "" : "s") found.")
         }
         nextPage = result.nextPage
     }

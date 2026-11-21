@@ -68,6 +68,8 @@ Include relevant previews for loading, loaded, empty and error states when appli
   and use adaptive layouts for accessibility text sizes.
 - Status badge foreground/background pairs must achieve at least 4.5:1 contrast
   in both appearances; retain textual labels so status is not conveyed by color alone.
+- Announce only accepted first-page search results or meaningful empty states.
+  Do not announce cancelled/stale responses or intermediate pagination updates.
 - Provide meaningful accessibility labels where necessary.
 - Avoid using color alone to communicate information.
 - Prefer accessible native controls over custom replacements.
@@ -88,13 +90,14 @@ Include relevant previews for loading, loaded, empty and error states when appli
 - Support remote character search with debounce and cancellation.
 - Support pagination using API metadata.
 - Prevent duplicate page requests and stale results.
-- Use cacheFirst in Presentation; retain reloadIgnoringCache in Domain/Data for explicit network replacements.
+- Return valid cached results without networking; fetch missing or expired entries.
 - Cache paginated domain responses by normalized query and page.
 - Use an in-memory actor-based cache with configurable TTL.
 - Prevent obsolete in-flight operations from overwriting newer cached results.
 - Preserve previously loaded content after pagination failures.
 
-Do not introduce persistent storage unless explicitly approved.
+SwiftData is intentionally omitted: domain search pages need ephemeral TTL storage,
+not a persistent object store. Do not add persistence without explicit approval.
 
 ## Error Handling
 
@@ -129,6 +132,13 @@ Tests must validate observable behavior.
 - Xcode selects test targets and configures runner processes; this is distinct
   from Swift Testing's task-group concurrency within each process. Verify both
   actual execution and generated test configuration before claiming validation.
+- Keep native UI tests in RickAndMortyUITests. Use explicit Debug-only launch arguments
+  for deterministic App composition; never reach the real API or image network in UI tests.
+  Normal and Release launches must retain real dependencies. Do not bypass debounce,
+  cancellation or navigation behavior for test launches.
+- Prefer visible labels and semantic elements for UI selection. Use element waits or
+  expectations instead of sleeps. Run list/detail accessibility audits without broad
+  ignore handlers; report genuine failures and Inspector/runtime discrepancies.
 - Keep use-case tests under Tests/UseCases, reusable actor spies under Tests/Mocks
   with nested request records, and nontrivial fixtures under Tests/Fixtures.
 
@@ -199,9 +209,10 @@ Prefer a simpler, defensible solution when two implementations satisfy the same 
   functionality.
 - Keep Character and CharacterPage immutable and Sendable. Origin and location
   are display names; nextPage is a one-based page number or nil. Keep repository
-  fetch policy explicit; the search use case defaults to cacheFirst.
-- ViewState belongs to Presentation. Use typed presentation errors when concrete
-  mappings justify them. Do not compare localized error text in tests.
+  reads cache-first without a separate fetch-policy parameter.
+- ViewState belongs to Presentation and uses CharactersError for failures. Keep
+  conditional Equatable conformance for equatable values; do not compare localized
+  error text in tests.
 - Treat only the character-search endpoint's verified no-match HTTP 404 as empty
   results. Do not convert arbitrary 404 responses into success.
 - Cache TTL defaults to three minutes and must be configurable. Keep query/page
@@ -224,7 +235,9 @@ change. SwiftPM uses tools 6.0 and language mode v6 with nonisolated defaults;
 app settings do not configure package compilation. Cache state uses its own actor
 rather than MainActor isolation.
 
-Pinned development tools are SwiftFormat 0.64.5 and SwiftLint 0.65.1. Obtain their
+Pinned development tools are SwiftFormat 0.64.5 and SwiftLint 0.65.1. CI verifies
+archive SHA-256 digests before extracting them. When updating tools, verify the exact
+release asset digests and update the workflow checksums together. Obtain their
 release executables from the upstream repositories and place them on PATH. Run
 from the repository root:
 
@@ -232,10 +245,22 @@ from the repository root:
 bash Scripts/check-quality.sh
 ```
 
+The audit lint rules also enable unused_declaration and unused_import analyzers.
+Run them separately against a clean build/test compiler log; ordinary lint cannot
+validate analyzer rules:
+
+```bash
+swiftlint analyze --strict --config .swiftlint.yml --compiler-log-path /tmp/rickandmorty-build.log
+```
+
+Generate the log with a clean main-scheme build and test run redirected to that
+path. Ensure all app/package/test sources have compiler arguments before claiming
+analyzer coverage; disclose skipped files or toolchain limitations.
+
 To format intentional Swift changes:
 
 ```bash
-swiftformat --cache ignore RickAndMorty/RickAndMorty Packages/RickAndMortyKit
+swiftformat --cache ignore RickAndMorty Packages/RickAndMortyKit RickAndMortyUITests
 ```
 
 The app has exactly one optional SwiftLint Run Script phase invoking
@@ -257,7 +282,7 @@ installation. Project-level sandboxing stays enabled; Swift/package concurrency
 settings remain unchanged. Do not broaden this exception to other targets.
 
 The Xcode project bundle lives at the repository root, beside Packages and Scripts.
-Application sources remain in RickAndMorty/RickAndMorty; do not duplicate or move
+Application sources remain in RickAndMorty; do not duplicate or move
 them merely to change navigator labels.
 
 Build from the repository root:
@@ -268,7 +293,7 @@ xcodebuild -project RickAndMorty.xcodeproj \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-Run all three package test targets through the main app scheme from the repository root:
+Run all three package test targets and the three functional UI tests through the main app scheme:
 
 ```bash
 xcodebuild -project RickAndMorty.xcodeproj \
@@ -280,6 +305,8 @@ xcodebuild -project RickAndMorty.xcodeproj \
 Choose an installed simulator when necessary and report its OS version. The
 package is iOS-only; use xcodebuild with an iOS Simulator rather than host swift
 test for the whole package. Keep UI tests outside the main CI workflow.
+Run the unfiltered list/detail accessibility audits explicitly with the shared
+RickAndMorty-ManualAccessibility scheme; keep them separate from the standard suite.
 CI selects Xcode 26.4.1 on macos-26. Disclose local/CI toolchain differences and
 inspect the workflow for the PR's current commit before reporting CI success.
 Honor instructions restricting hosted CI. When hosted execution is prohibited,
@@ -297,9 +324,9 @@ validation separately: deliberately skipped CI is not passing CI.
 - The JSON API default URLSession is ephemeral, has no URLCache, and ignores local cached
   data. Every request independently sets reloadIgnoringLocalCacheData and the
   Cache-Control: no-cache header, including when a session is injected.
-- cacheFirst returns an unexpired domain result before networking; reloadIgnoringCache
-  bypasses it. Network requests retain the same HTTP-cache bypass under either
-  policy. Failed replacements preserve existing values and their original TTL.
+- Repository reads return unexpired domain results before networking. Missing or
+  expired values fetch with the JSON request HTTP-cache bypass. Failed/cancelled
+  fetches do not populate the cache or extend another entry's lifetime.
 - Check cancellation before requests, after transport completion, and before
   returning mapped results. Normalize URLSession's cancelled URLError and preserve
   CancellationError. Test late successful completion using controlled continuations.
@@ -350,11 +377,12 @@ guarantee that every run produces a different order.
   lowercase the query while preserving internal characters, and include the one-based page.
 - Repository code owns fetching. Use per-key generation
   tokens to conditionally commit responses; do not introduce shared in-flight
-  network tasks or deduplication without an explicit requirement.
+  network tasks or deduplication without an explicit requirement. Concurrent misses
+  for the same key can overlap, so tokens remain necessary even without forced refresh.
 - After every suspension, revalidate cancellation and token ownership before
   committing a network result. Token validation and insertion must form one
   actor-isolated segment with no intervening await.
-- Failed/cancelled replacements preserve existing entries and their original TTL.
+- Failed/cancelled writes do not modify entries or extend their TTL.
   Independent page lifetimes do not guarantee a consistent server snapshot across
   pages. Presentation owners reset visible pagination on new searches;
   cache storage does not coordinate page generations.

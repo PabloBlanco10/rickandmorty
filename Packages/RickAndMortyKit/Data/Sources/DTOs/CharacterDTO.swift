@@ -1,4 +1,6 @@
-import Foundation
+struct CharacterLocationDTO: Decodable, Sendable {
+    let name: String
+}
 
 struct CharacterDTO: Decodable, Sendable {
     let id: Int
@@ -9,8 +11,4 @@ struct CharacterDTO: Decodable, Sendable {
     let gender: String
     let origin: CharacterLocationDTO
     let location: CharacterLocationDTO
-}
-
-struct CharacterLocationDTO: Decodable, Sendable {
-    let name: String
 }

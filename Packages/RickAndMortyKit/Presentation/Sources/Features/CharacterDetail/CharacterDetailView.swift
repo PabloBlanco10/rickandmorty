@@ -20,7 +20,7 @@ struct CharacterDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
             }
-            Section("Details") {
+            Section {
                 LabeledContent("Status") {
                     StatusBadge(status: character.status)
                 }
@@ -28,6 +28,9 @@ struct CharacterDetailView: View {
                 LabeledContent("Gender", value: gender(character.gender))
                 LabeledContent("Origin", value: character.origin)
                 LabeledContent("Location", value: character.location)
+            } header: {
+                Text("Details")
+                    .foregroundStyle(Color.primary)
             }
         }
         .navigationTitle("Character")

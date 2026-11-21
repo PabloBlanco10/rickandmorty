@@ -1,8 +1,9 @@
-/// Full-screen content state. Refresh and pagination must retain loaded content
-/// and track their progress and errors separately in the owning ViewModel.
+/// Full-screen state; pagination retains loaded content and tracks progress separately.
 enum ViewState<Value: Sendable>: Sendable {
     case idle
     case loading
     case loaded(Value)
-    case failed(any Error)
+    case failed(CharactersError)
 }
+
+extension ViewState: Equatable where Value: Equatable {}
