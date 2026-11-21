@@ -46,7 +46,7 @@ struct CharactersViewModelTests {
     }
 
     @Test
-    func debounceCancelsPreviousInputAndNormalizesOnlySurroundingWhitespace() async throws {
+    func debounceCancelsPreviousInputAndNormalizesWhitespaceAndCase() async throws {
         let debounce = ControlledDebounce()
         let fixture = SearchViewModelFixture(debounce: { await debounce.wait() })
         fixture.viewModel.updateSearchText("Rick")
@@ -57,16 +57,20 @@ struct CharactersViewModelTests {
         let second = try #require(fixture.viewModel.operation)
         #expect(first.isCancelled)
         await debounce.waitUntilRequested(count: 2)
+        fixture.viewModel.updateSearchText(" MORTY SMITH ")
+        #expect(fixture.viewModel.searchText == " MORTY SMITH ")
+        #expect(fixture.viewModel.operation == second)
+        #expect(!second.isCancelled)
         await debounce.release()
         await first.value
         #expect(await fixture.repository.requests.isEmpty)
         await debounce.release(1)
         await fixture.repository.waitUntilRequested()
-        #expect(await fixture.repository.requests.first?.query == "Morty Smith")
+        #expect(await fixture.repository.requests.first?.query == "morty smith")
         await fixture.repository.succeed(ids: [2])
         await second.value
         #expect(fixture.ids == [2])
-        fixture.viewModel.updateSearchText("Morty Smith")
+        fixture.viewModel.updateSearchText("  MORTY SMITH ")
         #expect(fixture.ids == [2])
         #expect(await fixture.repository.requests.count == 1)
     }
@@ -118,7 +122,7 @@ struct CharactersViewModelTests {
         await debounce.waitUntilRequested()
         await debounce.release()
         await fixture.repository.waitUntilRequested(count: 2)
-        #expect(await fixture.repository.requests.last == .init(query: "Morty", page: 1, policy: .cacheFirst))
+        #expect(await fixture.repository.requests.last == .init(query: "morty", page: 1, policy: .cacheFirst))
         await fixture.repository.succeed(ids: [], at: 1)
         await search.value
         #expect(fixture.ids == [])

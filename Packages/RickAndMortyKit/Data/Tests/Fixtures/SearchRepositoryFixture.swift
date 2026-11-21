@@ -13,7 +13,7 @@ struct SearchRepositoryFixture: Sendable {
         ttl: Duration = .seconds(180)
     ) throws {
         let time = ManualTimeSource()
-        let cache = MemoryCache<SearchCacheKey, CharacterPage>(ttl: ttl, now: { await time.now() })
+        let cache = MemoryCache<SearchCacheKey, CharacterPage>(ttl: ttl, now: { time.now() })
         self.time = time
         self.cache = cache
         repository = try RickAndMortyCharacterRepository(

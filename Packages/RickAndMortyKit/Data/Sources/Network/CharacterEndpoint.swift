@@ -18,18 +18,6 @@ enum CharacterEndpoint {
         return url
     }
 
-    static func detail(baseURL: URL, id: Int) throws -> URL {
-        guard id > 0 else {
-            throw HTTPClientError.invalidURL
-        }
-        var components = try collectionComponents(baseURL: baseURL)
-        components.path += "/\(id)"
-        guard let url = components.url else {
-            throw HTTPClientError.invalidURL
-        }
-        return url
-    }
-
     private static func collectionComponents(baseURL: URL) throws -> URLComponents {
         guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false),
               ["http", "https"].contains(components.scheme),

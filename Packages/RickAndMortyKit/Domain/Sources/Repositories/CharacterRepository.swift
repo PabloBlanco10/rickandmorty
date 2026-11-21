@@ -5,7 +5,4 @@ public protocol CharacterRepository: Sendable {
         page: Int,
         policy: FetchPolicy
     ) async throws -> CharacterPage
-
-    /// Fetches one character by its positive identifier.
-    func character(id: Int, policy: FetchPolicy) async throws -> Character
 }

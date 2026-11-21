@@ -1,42 +1,14 @@
-/// Frozen monotonic time, with an optional suspension to exercise cache reentrancy.
-actor ManualTimeSource {
-    private var instant = ContinuousClock().now
-    private var suspendNext = false
-    private var suspendedRead: CheckedContinuation<ContinuousClock.Instant, Never>?
-    private var readWaiter: CheckedContinuation<Void, Never>?
+import os
 
-    func now() async -> ContinuousClock.Instant {
-        guard suspendNext else { return instant }
-        suspendNext = false
-        return await withCheckedContinuation { continuation in
-            suspendedRead = continuation
-            readWaiter?.resume()
-            readWaiter = nil
-        }
+/// Synchronous monotonic reads; the lock protects both reads and explicit advances.
+final class ManualTimeSource: Sendable {
+    private let instant = OSAllocatedUnfairLock(initialState: ContinuousClock().now)
+
+    func now() -> ContinuousClock.Instant {
+        instant.withLock { $0 }
     }
 
     func advance(by duration: Duration) {
-        instant = instant.advanced(by: duration)
-    }
-
-    func suspendNextRead() {
-        precondition(suspendedRead == nil)
-        suspendNext = true
-    }
-
-    func waitUntilReadSuspends() async {
-        if suspendedRead != nil {
-            return
-        }
-        precondition(readWaiter == nil)
-        await withCheckedContinuation { readWaiter = $0 }
-    }
-
-    func resumeRead() {
-        guard let continuation = suspendedRead else {
-            preconditionFailure("Wait for the clock read before resuming it")
-        }
-        suspendedRead = nil
-        continuation.resume(returning: instant)
+        instant.withLock { $0 = $0.advanced(by: duration) }
     }
 }

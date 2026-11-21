@@ -27,7 +27,7 @@ Captured from the running app on an iPhone 17 Pro simulator in Light Mode.
 
 - iOS 17+, Swift 6 with strict concurrency, SwiftUI and Observation.
 - Swift Package Manager, Swift Testing and native URLSession.
-- SwiftFormat 0.64.5, SwiftLint 0.63.2 and GitHub Actions.
+- SwiftFormat 0.64.5, SwiftLint 0.65.1 and GitHub Actions.
 - No third-party runtime dependencies.
 
 ## Architecture
@@ -40,29 +40,33 @@ Captured from the running app on an iPhone 17 Pro simulator in Light Mode.
 | App | Entry point and dependency composition | Domain, Data, Presentation |
 
 The three library targets live in `Packages/RickAndMortyKit`, with colocated tests.
-Dependencies point toward Domain; the App is the composition root and supplies
-concrete dependencies through constructor injection. Domain and Data avoid UI frameworks.
+MVVM keeps rendering separate from observable UI state; Clean Architecture keeps
+business contracts independent of networking and SwiftUI. Separate SPM targets
+enforce these dependency boundaries at compilation. The App is the composition root
+and supplies concrete dependencies through constructor injection. Domain and Data avoid UI frameworks.
 The project is configured for iOS only.
 
 ## Key technical decisions
 
 - **Concurrency and cancellation:** MainActor-isolated ViewModels own UI state.
   Searches use cancellable tasks and generation identifiers to reject obsolete
-  results. Cooperative cancellation also protects detail loading and repository operations.
+  results. Equivalent queries are trimmed and lowercased before comparison, preventing
+  case-only edits from restarting searches. Repository operations also respect cancellation.
 - **Domain caching:** Generic actor-isolated `MemoryCache` stores search pages by
-  normalized query and page, and details independently by character ID. `cacheFirst`
-  returns valid entries without networking; missing or expired entries fetch automatically.
+  normalized query and page. `cacheFirst` returns valid entries without networking; missing or expired entries fetch automatically.
   Domain/Data also support `reloadIgnoringCache`; the UI has no manual refresh.
-  Per-key generation tokens prevent older responses from replacing newer cached values.
+  Synchronous injected monotonic time keeps cache operations free of suspension points;
+  per-key generation tokens still prevent out-of-order network responses from replacing newer values.
   Failed or cancelled replacements preserve prior data and its original expiry.
   Pages expire independently, so a consistent server snapshot across pages is not guaranteed.
 - **Networking and images:** URLSession requests decode Data-only DTOs into domain
   models and map infrastructure failures to domain errors, preserving cancellation.
   JSON requests bypass HTTP caching; a separate image session uses URLCache-backed
   HTTP caching. Image retention depends on cache policy and eviction and is not guaranteed.
-- **Navigation and state:** Native `NavigationStack` carries character IDs. Views
-  retain observable ViewModels with `@State`; detail load/retry tasks belong to SwiftUI.
-  Pagination progress and errors remain separate from loaded results.
+- **Navigation and state:** Native `NavigationLink` and `NavigationStack` carry the selected
+  immutable `Character`. Details display the fields already returned by the list API,
+  without another detail request, cache or ViewModel. The App retains the search ViewModel
+  with `@State`. Pagination progress and errors remain separate from loaded results.
 - **Deterministic testing:** Constructor injection, controlled repository/transport
   doubles and injected monotonic time test cancellation, expiration and out-of-order
   completion without real HTTP requests or timing-based sleeps.
@@ -82,10 +86,10 @@ With the main `RickAndMorty` scheme selected, press Cmd+U to run all three packa
 
 - **DomainTests:** use cases and policies using repository test doubles.
 - **DataTests:** networking, mapping, cache hits, TTL expiration, cancellation and concurrent responses.
-- **PresentationTests:** search, stale-result protection, pagination, detail states and retry.
+- **PresentationTests:** search, stale-result protection, pagination and retry.
 
 Run `bash Scripts/check-quality.sh` with the pinned tools on PATH for SwiftFormat
 and strict SwiftLint checks. Xcode builds also run an optional SwiftLint phase.
 The [GitHub Actions workflow](.github/workflows/ci.yml) covers build, tests, lint
-and formatting. Local validation is separate; a successful hosted CI run has not been verified.
+and formatting. Local validation and hosted CI results are reported separately for each change.
 See [AGENTS.md](AGENTS.md) for engineering conventions and detailed development commands.

@@ -6,7 +6,6 @@ public struct RickAndMortyCharacterRepository: CharacterRepository {
     private let baseURL: URL
     private let client: HTTPClient
     private let cache: MemoryCache<SearchCacheKey, CharacterPage>
-    private let detailCache: MemoryCache<Int, Domain.Character>
 
     /// baseURL is the API root (for production, https://rickandmortyapi.com/api).
     /// The default session has no HTTP cache. Injected sessions are also subject
@@ -15,21 +14,18 @@ public struct RickAndMortyCharacterRepository: CharacterRepository {
         self.init(
             baseURL: baseURL,
             client: HTTPClient(transport: URLSessionTransport(session: session)),
-            cache: MemoryCache(ttl: cacheTTL),
-            detailCache: MemoryCache(ttl: cacheTTL)
+            cache: MemoryCache(ttl: cacheTTL)
         )
     }
 
     init(
         baseURL: URL,
         client: HTTPClient,
-        cache: MemoryCache<SearchCacheKey, CharacterPage> = MemoryCache(),
-        detailCache: MemoryCache<Int, Domain.Character> = MemoryCache()
+        cache: MemoryCache<SearchCacheKey, CharacterPage> = MemoryCache()
     ) {
         self.baseURL = baseURL
         self.client = client
         self.cache = cache
-        self.detailCache = detailCache
     }
 
     public func searchCharacters(query: String, page: Int, policy: FetchPolicy) async throws -> CharacterPage {
@@ -59,48 +55,6 @@ public struct RickAndMortyCharacterRepository: CharacterRepository {
         } catch {
             await cache.finishWrite(token)
             throw error
-        }
-    }
-
-    public func character(id: Int, policy: FetchPolicy) async throws -> Domain.Character {
-        try Task.checkCancellation()
-        let url: URL
-        do {
-            url = try CharacterEndpoint.detail(baseURL: baseURL, id: id)
-        } catch let error as HTTPClientError {
-            throw Self.repositoryError(for: error)
-        }
-        if policy == .cacheFirst,
-           let cached = await detailCache.value(for: id)
-        {
-            try Task.checkCancellation()
-            return cached
-        }
-
-        let token = try await detailCache.beginWrite(for: id)
-        do {
-            let dto: CharacterDTO = try await client.get(from: url)
-            let result = try dto.toDomain()
-            guard result.id == id else {
-                throw CharacterMappingError.invalidCharacter
-            }
-            try Task.checkCancellation()
-            _ = try await detailCache.commit(result, using: token)
-            try Task.checkCancellation()
-            return result
-        } catch {
-            await detailCache.finishWrite(token)
-            if error is CancellationError || Task.isCancelled {
-                throw CancellationError()
-            }
-            if let error = error as? HTTPClientError {
-                // Unlike filtered search, a detail 404 is always a service failure.
-                throw Self.repositoryError(for: error)
-            }
-            if error is CharacterMappingError {
-                throw CharacterRepositoryError.invalidData
-            }
-            throw CharacterRepositoryError.unexpected
         }
     }
 

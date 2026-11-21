@@ -116,20 +116,14 @@ struct HTTPClientTests {
     }
 
     @Test
-    func defaultSessionDisablesHTTPCache() {
-        let transport = URLSessionTransport()
-        let configuration = transport.session.configuration
-        #expect(configuration.urlCache == nil)
-        #expect(configuration.requestCachePolicy == .reloadIgnoringLocalCacheData)
-        transport.session.invalidateAndCancel()
-    }
-
-    @Test
-    func acceptsConstructorInjectedSession() {
-        let session = URLSession(configuration: .ephemeral)
-        let transport = URLSessionTransport(session: session)
-        #expect(transport.session === session)
-        session.invalidateAndCancel()
+    func injectedNativeSessionReceivesUncachedJSONRequest() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [APIURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let client = HTTPClient(transport: URLSessionTransport(session: session))
+        let result: Payload = try await client.get(from: APIResponseFixture.url())
+        #expect(result.value == 42)
     }
 }
 

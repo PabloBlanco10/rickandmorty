@@ -5,7 +5,7 @@ protocol HTTPTransport: Sendable {
 }
 
 struct URLSessionTransport: HTTPTransport {
-    let session: URLSession
+    private let session: URLSession
 
     init(session: URLSession? = nil) {
         if let session {

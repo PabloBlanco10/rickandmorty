@@ -36,7 +36,6 @@ struct HTTPClient: Sendable {
             throw HTTPClientError.invalidResponse
         }
         guard (200 ..< 300).contains(response.statusCode) else {
-            print("❌ Failed to fetch data from \(url), statusCode: \(response.statusCode)")
             throw HTTPClientError.httpStatus(code: response.statusCode, body: data)
         }
 

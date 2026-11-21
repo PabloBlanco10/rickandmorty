@@ -56,7 +56,7 @@ struct RickAndMortyCharacterRepositoryTests {
         let url = try #require(requests.first?.url)
         let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
         #expect(components.path == "/api/character")
-        #expect(components.queryItems?.first(where: { $0.name == "name" })?.value == query)
+        #expect(components.queryItems?.first(where: { $0.name == "name" })?.value == query.lowercased())
         #expect(components.queryItems?.first(where: { $0.name == "page" })?.value == "2")
         #expect(components.fragment == nil)
         #expect(components.percentEncodedQuery?.contains("%2B") == true)

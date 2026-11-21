@@ -72,8 +72,8 @@ struct CharacterSearchConcurrencyTests {
         let body = try APIResponseFixture.pageData(next: nil, id: 2)
         let response = try APIResponseFixture.response()
         let firstKey = SearchCacheKey(query: "Rick", page: 1)
-        try await fixture.cache.insert(old, for: firstKey)
-        await fixture.time.advance(by: .seconds(179))
+        try await fixture.cache.seed(old, for: firstKey)
+        fixture.time.advance(by: .seconds(179))
         let task = Task { try await fixture.repository.searchCharacters(
             query: "Rick",
             page: 1,
@@ -84,7 +84,7 @@ struct CharacterSearchConcurrencyTests {
         await transport.succeed(data: body, response: response)
         await #expect(throws: CancellationError.self) { try await task.value }
         #expect(await fixture.cache.value(for: firstKey) == old)
-        await fixture.time.advance(by: .seconds(1))
+        fixture.time.advance(by: .seconds(1))
         #expect(await fixture.cache.value(for: firstKey) == nil)
     }
 

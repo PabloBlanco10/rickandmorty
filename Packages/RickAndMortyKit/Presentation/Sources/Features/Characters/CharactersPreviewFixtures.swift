@@ -15,19 +15,12 @@ enum CharactersPreviewFixtures {
             initialState: state,
             debounce: {}
         )
-        return CharactersView(
-            viewModel: viewModel,
-            detailUseCase: GetCharacterDetailUseCase(repository: PreviewCharacterRepository())
-        )
+        return CharactersView(viewModel: viewModel)
     }
 }
 
 private struct PreviewCharacterRepository: CharacterRepository {
     func searchCharacters(query _: String, page _: Int, policy _: FetchPolicy) async throws -> CharacterPage {
         CharacterPage(characters: [], nextPage: nil)
-    }
-
-    func character(id _: Int, policy _: FetchPolicy) async throws -> Character {
-        await CharactersPreviewFixtures.character
     }
 }

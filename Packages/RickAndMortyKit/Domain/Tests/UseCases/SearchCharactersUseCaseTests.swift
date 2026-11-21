@@ -3,6 +3,19 @@ import Foundation
 import Testing
 
 struct SearchCharactersUseCaseTests {
+    @Test(arguments: [
+        ("  Rick\n", "rick"), ("rICK", "rick"),
+        (" MORTY Smith ", "morty smith"), (" \n", "")
+    ])
+    func executeNormalizesEquivalentQueries(input: String, expected: String) async throws {
+        let repository = CharacterRepositorySpy(result: .success(CharacterPage(characters: [], nextPage: nil)))
+        let useCase = SearchCharactersUseCase(repository: repository)
+
+        _ = try await useCase.execute(query: input, page: 1)
+
+        #expect(await repository.requests == [.init(query: expected, page: 1, policy: .cacheFirst)])
+    }
+
     @Test(arguments: [FetchPolicy.cacheFirst, .reloadIgnoringCache])
     func delegatesParametersAndReturnsCompletePage(policy: FetchPolicy) async throws {
         let character = try Domain.Character.fixture()
@@ -13,7 +26,7 @@ struct SearchCharactersUseCaseTests {
         let result = try await useCase.execute(query: " Rick ", page: 2, policy: policy)
 
         #expect(result == expected)
-        #expect(await repository.requests == [CharacterRepositorySpy.Request(query: " Rick ", page: 2, policy: policy)])
+        #expect(await repository.requests == [CharacterRepositorySpy.Request(query: "rick", page: 2, policy: policy)])
     }
 
     @Test
@@ -37,7 +50,7 @@ struct SearchCharactersUseCaseTests {
             try await useCase.execute(query: "Morty", page: 1)
         }
         #expect(await repository.requests == [CharacterRepositorySpy.Request(
-            query: "Morty",
+            query: "morty",
             page: 1,
             policy: .cacheFirst
         )])

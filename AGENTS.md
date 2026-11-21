@@ -47,7 +47,9 @@ Use constructor-based dependency injection. Avoid service locators and global si
 - Follow MVVM with clear state ownership.
 - Use ViewState for initial loading, success, empty and failure behavior as appropriate.
 - Keep pagination progress and errors separate from loaded content.
-- Use native NavigationStack for navigation.
+- Use native NavigationStack and NavigationLink(value:) for navigation. Pass the
+  selected immutable Character directly to the detail view; do not refetch fields
+  already present in the list response or add a detail ViewModel for static display.
 - Use native SwiftUI components when possible.
 - Do not place networking or business logic inside Views.
 
@@ -62,7 +64,10 @@ Include relevant previews for loading, loaded, empty and error states when appli
 - Support automatic Light and Dark Mode based on system appearance.
 - Use semantic SwiftUI colors and adaptive Asset Catalog colors.
 - Do not force a global color scheme.
-- Support Dynamic Type and VoiceOver.
+- Support Dynamic Type and VoiceOver. Scale character images with @ScaledMetric
+  and use adaptive layouts for accessibility text sizes.
+- Status badge foreground/background pairs must achieve at least 4.5:1 contrast
+  in both appearances; retain textual labels so status is not conveyed by color alone.
 - Provide meaningful accessibility labels where necessary.
 - Avoid using color alone to communicate information.
 - Prefer accessible native controls over custom replacements.
@@ -194,7 +199,7 @@ Prefer a simpler, defensible solution when two implementations satisfy the same 
   functionality.
 - Keep Character and CharacterPage immutable and Sendable. Origin and location
   are display names; nextPage is a one-based page number or nil. Keep repository
-  fetch policy explicit; both search and detail use cases default to cacheFirst.
+  fetch policy explicit; the search use case defaults to cacheFirst.
 - ViewState belongs to Presentation. Use typed presentation errors when concrete
   mappings justify them. Do not compare localized error text in tests.
 - Treat only the character-search endpoint's verified no-match HTTP 404 as empty
@@ -219,7 +224,7 @@ change. SwiftPM uses tools 6.0 and language mode v6 with nonisolated defaults;
 app settings do not configure package compilation. Cache state uses its own actor
 rather than MainActor isolation.
 
-Pinned development tools are SwiftFormat 0.64.5 and SwiftLint 0.63.2. Obtain their
+Pinned development tools are SwiftFormat 0.64.5 and SwiftLint 0.65.1. Obtain their
 release executables from the upstream repositories and place them on PATH. Run
 from the repository root:
 
@@ -299,14 +304,15 @@ validation separately: deliberately skipped CI is not passing CI.
   returning mapped results. Normalize URLSession's cancelled URLError and preserve
   CancellationError. Test late successful completion using controlled continuations.
 - Translate infrastructure failures to CharacterRepositoryError: invalidRequest
-  for invalid page/character ID/base URL; networkUnavailable for connection loss, unavailable
+  for invalid page/base URL; networkUnavailable for connection loss, unavailable
   connections and timeouts; serviceFailure for HTTP rejection or other URLSession
   failures such as TLS rejection; invalidData for non-HTTP, decode or mapping
   failures; unexpected only for unrecognized non-URLSession transport errors.
 - Only a nonempty filtered search on page 1 whose 404 JSON body identifies
   "There is nothing here" maps to an empty page. Other endpoints, pages, statuses
   and unrecognized/malformed error bodies remain service failures.
-- Trim surrounding search whitespace, preserve the remaining query text, and use
+- Use SearchCharactersUseCase.normalizedQuery for trimming and lowercase normalization
+  in UI query comparison and Data cache keys; preserve internal whitespace. Use
   URLComponents/URLQueryItem for encoding. Map pagination metadata into nextPage;
   never issue requests directly to an API-provided next URL.
 - Inject API roots, transports and time sources through constructors. Keep test
@@ -334,12 +340,14 @@ guarantee that every run produces a different order.
 ## Cache concurrency
 
 - Keep MemoryCache generic and independent of HTTP, DTOs and domain models. Store
-  domain values and keep search and detail caches independent unless a concrete
-  consistency requirement justifies coordination.
-- Use monotonic time with Duration-based TTL and an injected time source. Entries
+  domain search pages; do not introduce detail caching when navigation already carries
+  the complete Character from the list.
+- Use monotonic time with Duration-based TTL and a synchronous Sendable time source.
+  Do not add suspension points inside cache operations. Test clocks must protect
+  synchronous reads/advances with a safe lock such as OSAllocatedUnfairLock. Entries
   expire exactly at their deadline. Use manual time in tests, never sleeps.
 - Normalize search keys consistently: trim surrounding whitespace/newlines,
-  preserve case and internal characters, and include the one-based page.
+  lowercase the query while preserving internal characters, and include the one-based page.
 - Repository code owns fetching. Use per-key generation
   tokens to conditionally commit responses; do not introduce shared in-flight
   network tasks or deduplication without an explicit requirement.
@@ -355,5 +363,5 @@ guarantee that every run produces a different order.
 - A discarded cache write does not transfer ownership of a caller's task.
   UI owners must cancel obsolete searches and gate stale UI updates themselves.
 - Test reverse completion order, independent page lifetimes, cancellation and
-  clock-induced actor reentrancy with controlled continuations. Keep race tests
+  out-of-order network responses with controlled continuations. Keep race tests
   focused on distinct responsibilities rather than duplicating them across layers.
