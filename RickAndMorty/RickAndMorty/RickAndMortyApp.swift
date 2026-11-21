@@ -7,7 +7,6 @@ import SwiftUI
 @main
 @MainActor
 struct RickAndMortyApp: App {
-    private let detailUseCase: GetCharacterDetailUseCase
     private let imageLoader = URLSessionImageLoader()
     @State private var viewModel: CharactersViewModel
 
@@ -16,13 +15,12 @@ struct RickAndMortyApp: App {
             preconditionFailure("The configured API root must be a valid URL")
         }
         let repository = RickAndMortyCharacterRepository(baseURL: apiRoot)
-        detailUseCase = GetCharacterDetailUseCase(repository: repository)
         _viewModel = State(initialValue: CharactersViewModel(useCase: SearchCharactersUseCase(repository: repository)))
     }
 
     var body: some Scene {
         WindowGroup {
-            CharactersView(viewModel: viewModel, imageLoader: imageLoader, detailUseCase: detailUseCase)
+            CharactersView(viewModel: viewModel, imageLoader: imageLoader)
         }
     }
 }

@@ -2,31 +2,26 @@ import Domain
 import SwiftUI
 
 public struct CharactersView: View {
-    @State private var path: [Int] = []
-    private let detailUseCase: GetCharacterDetailUseCase
     private let viewModel: CharactersViewModel
     private let imageLoader: (any ImageLoader)?
 
     public init(
-        viewModel: CharactersViewModel, imageLoader: any ImageLoader, detailUseCase: GetCharacterDetailUseCase
+        viewModel: CharactersViewModel, imageLoader: any ImageLoader
     ) {
         self.viewModel = viewModel
         self.imageLoader = imageLoader
-        self.detailUseCase = detailUseCase
     }
 
-    init(viewModel: CharactersViewModel, detailUseCase: GetCharacterDetailUseCase) {
+    init(viewModel: CharactersViewModel) {
         self.viewModel = viewModel
         imageLoader = nil
-        self.detailUseCase = detailUseCase
     }
 
     public var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack {
             searchContent
-                .navigationDestination(for: Int.self) { id in
-                    CharacterDetailView(id: id, useCase: detailUseCase, imageLoader: imageLoader)
-                        .id(id)
+                .navigationDestination(for: Character.self) { character in
+                    CharacterDetailView(character: character, imageLoader: imageLoader)
                 }
                 .navigationTitle("Characters")
                 .navigationBarTitleDisplayMode(.inline)
@@ -94,9 +89,7 @@ public struct CharactersView: View {
                 .listRowSeparator(.hidden)
             } else {
                 ForEach(characters) { character in
-                    Button {
-                        path.append(character.id)
-                    } label: {
+                    NavigationLink(value: character) {
                         CharacterRow(character: character, imageLoader: imageLoader)
                             .contentShape(Rectangle())
                     }

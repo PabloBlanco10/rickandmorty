@@ -13,40 +13,27 @@ actor MemoryCache<Key: Hashable & Sendable, Value: Sendable> {
     }
 
     private let ttl: Duration
-    private let now: @Sendable () async -> ContinuousClock.Instant
+    private let now: @Sendable () -> ContinuousClock.Instant
     private var entries: [Key: Entry] = [:]
     private var writes: [Key: UUID] = [:]
 
     /// A nonpositive TTL makes inserted values immediately expired.
     init(
         ttl: Duration = .seconds(180),
-        now: @escaping @Sendable () async -> ContinuousClock.Instant = { ContinuousClock().now }
+        now: @escaping @Sendable () -> ContinuousClock.Instant = { ContinuousClock().now }
     ) {
         self.ttl = ttl
         self.now = now
     }
 
-    func value(for key: Key) async -> Value? {
-        let instant = await now()
+    func value(for key: Key) -> Value? {
+        let instant = now()
         guard let entry = entries[key] else { return nil }
         guard instant < entry.expiresAt else {
             entries.removeValue(forKey: key)
             return nil
         }
         return entry.value
-    }
-
-    /// Explicit replacement restarts the TTL and supersedes pending writes for this key.
-    func insert(_ value: Value, for key: Key) async throws {
-        let instant = await now()
-        try Task.checkCancellation()
-        writes.removeValue(forKey: key)
-        entries[key] = Entry(value: value, expiresAt: instant.advanced(by: ttl))
-    }
-
-    func removeValue(for key: Key) {
-        entries.removeValue(forKey: key)
-        writes.removeValue(forKey: key)
     }
 
     func beginWrite(for key: Key) throws -> WriteToken {
@@ -56,13 +43,13 @@ actor MemoryCache<Key: Hashable & Sendable, Value: Sendable> {
         return token
     }
 
-    /// Returns false for superseded/removed writes. Token validation and insertion
-    /// are atomic after any suspension needed by the injected clock.
+    /// Returns false for superseded/finished writes. Token validation and insertion
+    /// are atomic within the cache actor, with no suspension points.
     func commit(
         _ value: Value,
         using token: WriteToken
-    ) async throws -> Bool {
-        let instant = await now()
+    ) throws -> Bool {
+        let instant = now()
         try Task.checkCancellation()
         guard writes[token.key] == token.generation else { return false }
 

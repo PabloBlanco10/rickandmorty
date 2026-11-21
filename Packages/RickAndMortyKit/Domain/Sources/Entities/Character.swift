@@ -1,11 +1,11 @@
 import Foundation
 
-public struct Character: Identifiable, Equatable, Sendable {
-    public enum Status: Equatable, Sendable {
+public struct Character: Identifiable, Hashable, Sendable {
+    public enum Status: Hashable, Sendable {
         case alive, dead, unknown
     }
 
-    public enum Gender: Equatable, Sendable {
+    public enum Gender: Hashable, Sendable {
         case female, male, genderless, unknown
     }
 

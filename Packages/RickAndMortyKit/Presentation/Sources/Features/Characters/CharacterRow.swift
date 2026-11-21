@@ -4,11 +4,16 @@ import SwiftUI
 struct CharacterRow: View {
     let character: Character
     var imageLoader: (any ImageLoader)?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .body) private var imageSize = 64
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+        layout {
             CachedImage(url: character.imageURL, loader: imageLoader)
-                .frame(width: 64, height: 64)
+                .frame(width: min(imageSize, 160), height: min(imageSize, 160))
                 .background(.quaternary)
                 .clipShape(.rect(cornerRadius: 10))
                 .accessibilityHidden(true)
@@ -22,11 +27,9 @@ struct CharacterRow: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    StatusBagde(status: character.status)
+                    StatusBadge(status: character.status)
                 }
                 Spacer()
-                Image(systemName: "chevron.forward")
-                    .accessibilityHidden(true)
             }
         }
         .padding(.vertical, 4)

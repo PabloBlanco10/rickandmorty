@@ -51,7 +51,7 @@ public final class CharactersViewModel {
     /// The binding calls this synchronously: obsolete work is invalidated before debounce.
     func updateSearchText(_ text: String) {
         searchText = text
-        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = SearchCharactersUseCase.normalizedQuery(text)
         guard normalized != query else {
             return
         }
