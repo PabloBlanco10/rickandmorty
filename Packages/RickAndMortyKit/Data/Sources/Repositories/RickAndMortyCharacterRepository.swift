@@ -28,7 +28,38 @@ public struct RickAndMortyCharacterRepository: CharacterRepository {
         self.cache = cache
     }
 
-    public func searchCharacters(query: String, page: Int, policy: FetchPolicy) async throws -> CharacterPage {
+    private static func isNoMatchResponse(_ body: Foundation.Data) -> Bool {
+        do {
+            return try JSONDecoder().decode(APIErrorDTO.self, from: body).error == "There is nothing here"
+        } catch {
+            // An unrecognized error body must retain the HTTP failure semantics.
+            return false
+        }
+    }
+
+    private static func repositoryError(for error: HTTPClientError) -> CharacterRepositoryError {
+        switch error {
+        case .invalidURL:
+            .invalidRequest
+        case .invalidResponse, .decoding:
+            .invalidData
+        case .httpStatus:
+            .serviceFailure
+        case let .transport(code):
+            switch code {
+            case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost,
+                 .cannotConnectToHost, .dnsLookupFailed, .timedOut, .dataNotAllowed,
+                 .internationalRoamingOff:
+                .networkUnavailable
+            default:
+                .serviceFailure
+            }
+        case .unexpected:
+            .unexpected
+        }
+    }
+
+    public func searchCharacters(query: String, page: Int) async throws -> CharacterPage {
         try Task.checkCancellation()
         let key = SearchCacheKey(query: query, page: page)
         let url: URL
@@ -39,9 +70,7 @@ public struct RickAndMortyCharacterRepository: CharacterRepository {
             throw Self.repositoryError(for: error)
         }
 
-        if policy == .cacheFirst,
-           let cached = await cache.value(for: key)
-        {
+        if let cached = await cache.value(for: key) {
             try Task.checkCancellation()
             return cached
         }
@@ -83,37 +112,6 @@ public struct RickAndMortyCharacterRepository: CharacterRepository {
                 throw CharacterRepositoryError.invalidData
             }
             throw CharacterRepositoryError.unexpected
-        }
-    }
-
-    private static func isNoMatchResponse(_ body: Foundation.Data) -> Bool {
-        do {
-            return try JSONDecoder().decode(APIErrorDTO.self, from: body).error == "There is nothing here"
-        } catch {
-            // An unrecognized error body must retain the HTTP failure semantics.
-            return false
-        }
-    }
-
-    private static func repositoryError(for error: HTTPClientError) -> CharacterRepositoryError {
-        switch error {
-        case .invalidURL:
-            .invalidRequest
-        case .invalidResponse, .decoding:
-            .invalidData
-        case .httpStatus:
-            .serviceFailure
-        case let .transport(code):
-            switch code {
-            case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost,
-                 .cannotConnectToHost, .dnsLookupFailed, .timedOut, .dataNotAllowed,
-                 .internationalRoamingOff:
-                .networkUnavailable
-            default:
-                .serviceFailure
-            }
-        case .unexpected:
-            .unexpected
         }
     }
 }

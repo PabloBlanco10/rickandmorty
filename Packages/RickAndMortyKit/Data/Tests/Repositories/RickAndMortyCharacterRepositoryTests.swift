@@ -3,23 +3,27 @@ import Domain
 import Foundation
 import Testing
 
+private enum TestError: Error {
+    case unexpected
+}
+
 struct RickAndMortyCharacterRepositoryTests {
-    @Test(arguments: [FetchPolicy.cacheFirst, .reloadIgnoringCache])
-    func fetchPoliciesUseCachedOrForcedNetworkResults(policy: FetchPolicy) async throws {
+    @Test
+    func validCachedResultsAvoidNetworking() async throws {
         let transport = try HTTPTransportSpy(
             data: APIResponseFixture.pageData(),
             response: APIResponseFixture.response()
         )
         let repository = try makeRepository(transport: transport)
 
-        let first = try await repository.searchCharacters(query: "Rick", page: 1, policy: policy)
-        let second = try await repository.searchCharacters(query: "Rick", page: 1, policy: policy)
+        let first = try await repository.searchCharacters(query: "Rick", page: 1)
+        let second = try await repository.searchCharacters(query: "Rick", page: 1)
 
         #expect(first == second)
         #expect(first.characters.first?.name == "Rick Sanchez")
         #expect(first.nextPage == 2)
         let requests = await transport.requests
-        #expect(requests.count == (policy == .cacheFirst ? 1 : 2))
+        #expect(requests.count == 1)
         #expect(requests.allSatisfy { $0.cachePolicy == .reloadIgnoringLocalCacheData })
         #expect(requests.allSatisfy { $0.value(forHTTPHeaderField: "Cache-Control") == "no-cache" })
     }
@@ -32,7 +36,7 @@ struct RickAndMortyCharacterRepositoryTests {
         )
         let repository = try makeRepository(transport: transport)
 
-        _ = try await repository.searchCharacters(query: query, page: 3, policy: .cacheFirst)
+        _ = try await repository.searchCharacters(query: query, page: 3)
 
         let requests = await transport.requests
         let url = try #require(requests.first?.url)
@@ -50,7 +54,7 @@ struct RickAndMortyCharacterRepositoryTests {
         let repository = try makeRepository(transport: transport, base: "https://example.com/api/")
         let query = "Rick & Morty + ñ?/#"
 
-        _ = try await repository.searchCharacters(query: "  \(query) \n", page: 2, policy: .cacheFirst)
+        _ = try await repository.searchCharacters(query: "  \(query) \n", page: 2)
 
         let requests = await transport.requests
         let url = try #require(requests.first?.url)
@@ -68,7 +72,7 @@ struct RickAndMortyCharacterRepositoryTests {
         let transport = try HTTPTransportSpy(response: APIResponseFixture.response())
         let repository = try makeRepository(transport: transport)
         await #expect(throws: CharacterRepositoryError.invalidRequest) {
-            try await repository.searchCharacters(query: "Rick", page: page, policy: .cacheFirst)
+            try await repository.searchCharacters(query: "Rick", page: page)
         }
         #expect(await transport.requests.isEmpty)
     }
@@ -78,7 +82,7 @@ struct RickAndMortyCharacterRepositoryTests {
         let transport = try HTTPTransportSpy(response: APIResponseFixture.response())
         let repository = try makeRepository(transport: transport, base: base)
         await #expect(throws: CharacterRepositoryError.invalidRequest) {
-            try await repository.searchCharacters(query: "Rick", page: 1, policy: .cacheFirst)
+            try await repository.searchCharacters(query: "Rick", page: 1)
         }
         #expect(await transport.requests.isEmpty)
     }
@@ -91,7 +95,7 @@ struct RickAndMortyCharacterRepositoryTests {
         )
         let repository = try makeRepository(transport: transport)
 
-        let result = try await repository.searchCharacters(query: "no such character", page: 1, policy: .cacheFirst)
+        let result = try await repository.searchCharacters(query: "no such character", page: 1)
 
         #expect(result == CharacterPage(characters: [], nextPage: nil))
     }
@@ -104,7 +108,7 @@ struct RickAndMortyCharacterRepositoryTests {
         )
         let repository = try makeRepository(transport: transport)
         await #expect(throws: CharacterRepositoryError.serviceFailure) {
-            try await repository.searchCharacters(query: query, page: 1, policy: .cacheFirst)
+            try await repository.searchCharacters(query: query, page: 1)
         }
     }
 
@@ -116,7 +120,7 @@ struct RickAndMortyCharacterRepositoryTests {
         )
         let repository = try makeRepository(transport: transport)
         await #expect(throws: CharacterRepositoryError.serviceFailure) {
-            try await repository.searchCharacters(query: "Rick", page: 2, policy: .cacheFirst)
+            try await repository.searchCharacters(query: "Rick", page: 2)
         }
     }
 
@@ -128,7 +132,7 @@ struct RickAndMortyCharacterRepositoryTests {
         )
         let repository = try makeRepository(transport: transport)
         await #expect(throws: CharacterRepositoryError.serviceFailure) {
-            try await repository.searchCharacters(query: "Rick", page: 1, policy: .cacheFirst)
+            try await repository.searchCharacters(query: "Rick", page: 1)
         }
     }
 
@@ -140,7 +144,7 @@ struct RickAndMortyCharacterRepositoryTests {
         )
         let repository = try makeRepository(transport: transport)
         await #expect(throws: CharacterRepositoryError.serviceFailure) {
-            try await repository.searchCharacters(query: "Rick", page: 1, policy: .cacheFirst)
+            try await repository.searchCharacters(query: "Rick", page: 1)
         }
     }
 
@@ -148,7 +152,7 @@ struct RickAndMortyCharacterRepositoryTests {
     func mapsConnectivityFailures(code: URLError.Code) async throws {
         let repository = try makeRepository(transport: HTTPTransportSpy(error: URLError(code)))
         await #expect(throws: CharacterRepositoryError.networkUnavailable) {
-            try await repository.searchCharacters(query: "Rick", page: 1, policy: .cacheFirst)
+            try await repository.searchCharacters(query: "Rick", page: 1)
         }
     }
 
@@ -156,7 +160,7 @@ struct RickAndMortyCharacterRepositoryTests {
     func securityFailureIsNotReportedAsOffline() async throws {
         let repository = try makeRepository(transport: HTTPTransportSpy(error: URLError(.secureConnectionFailed)))
         await #expect(throws: CharacterRepositoryError.serviceFailure) {
-            try await repository.searchCharacters(query: "Rick", page: 1, policy: .cacheFirst)
+            try await repository.searchCharacters(query: "Rick", page: 1)
         }
     }
 
@@ -164,7 +168,7 @@ struct RickAndMortyCharacterRepositoryTests {
     func mapsUnexpectedTransportFailure() async throws {
         let repository = try makeRepository(transport: HTTPTransportSpy(error: TestError.unexpected))
         await #expect(throws: CharacterRepositoryError.unexpected) {
-            try await repository.searchCharacters(query: "Rick", page: 1, policy: .cacheFirst)
+            try await repository.searchCharacters(query: "Rick", page: 1)
         }
     }
 
@@ -173,7 +177,7 @@ struct RickAndMortyCharacterRepositoryTests {
         let transport = try HTTPTransportSpy(data: Foundation.Data(body.utf8), response: APIResponseFixture.response())
         let repository = try makeRepository(transport: transport)
         await #expect(throws: CharacterRepositoryError.invalidData) {
-            try await repository.searchCharacters(query: "Rick", page: 1, policy: .cacheFirst)
+            try await repository.searchCharacters(query: "Rick", page: 1)
         }
     }
 
@@ -184,7 +188,7 @@ struct RickAndMortyCharacterRepositoryTests {
         ))
         let repository = try makeRepository(transport: transport)
         await #expect(throws: CharacterRepositoryError.invalidData) {
-            try await repository.searchCharacters(query: "Rick", page: 1, policy: .cacheFirst)
+            try await repository.searchCharacters(query: "Rick", page: 1)
         }
     }
 
@@ -196,7 +200,7 @@ struct RickAndMortyCharacterRepositoryTests {
         )
         let repository = try makeRepository(transport: transport)
         await #expect(throws: CharacterRepositoryError.invalidData) {
-            try await repository.searchCharacters(query: "Rick", page: 1, policy: .cacheFirst)
+            try await repository.searchCharacters(query: "Rick", page: 1)
         }
     }
 
@@ -204,7 +208,7 @@ struct RickAndMortyCharacterRepositoryTests {
     func cancellationIsNotConvertedIntoRepositoryFailure() async throws {
         let repository = try makeRepository(transport: HTTPTransportSpy(error: URLError(.cancelled)))
         await #expect(throws: CancellationError.self) {
-            try await repository.searchCharacters(query: "Rick", page: 1, policy: .cacheFirst)
+            try await repository.searchCharacters(query: "Rick", page: 1)
         }
     }
 
@@ -215,7 +219,7 @@ struct RickAndMortyCharacterRepositoryTests {
         let body = try APIResponseFixture.pageData()
         let response = try APIResponseFixture.response()
         let task = Task {
-            try await repository.searchCharacters(query: "Rick", page: 1, policy: .reloadIgnoringCache)
+            try await repository.searchCharacters(query: "Rick", page: 1)
         }
 
         await transport.waitUntilRequested()
@@ -231,8 +235,4 @@ struct RickAndMortyCharacterRepositoryTests {
     ) throws -> RickAndMortyCharacterRepository {
         try SearchRepositoryFixture(transport: transport, base: base).repository
     }
-}
-
-private enum TestError: Error {
-    case unexpected
 }

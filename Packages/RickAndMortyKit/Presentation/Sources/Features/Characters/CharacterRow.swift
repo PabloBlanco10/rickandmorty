@@ -25,7 +25,7 @@ struct CharacterRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                     Text("\(character.species)")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.primary)
                         .fixedSize(horizontal: false, vertical: true)
                     StatusBadge(status: character.status)
                 }

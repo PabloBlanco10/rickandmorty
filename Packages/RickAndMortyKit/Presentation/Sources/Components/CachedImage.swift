@@ -17,8 +17,10 @@ struct CachedImage: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
+                    .accessibilityHidden(true)
             } else if failed || loader == nil {
                 Image(systemName: "person.crop.square")
+                    .accessibilityHidden(true)
                     .font(.title)
                     .foregroundStyle(.secondary)
             } else {

@@ -62,6 +62,20 @@
                ReferencedContainer = "container:Packages/RickAndMortyKit">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "B20000000000000000000001"
+               BuildableName = "RickAndMortyUITests.xctest"
+               BlueprintName = "RickAndMortyUITests"
+               ReferencedContainer = "container:RickAndMorty.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -99,6 +113,19 @@
                BlueprintName = "PresentationTests"
                ReferencedContainer = "container:Packages/RickAndMortyKit">
             </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "B20000000000000000000001"
+               BuildableName = "RickAndMortyUITests.xctest"
+               BlueprintName = "RickAndMortyUITests"
+               ReferencedContainer = "container:RickAndMorty.xcodeproj">
+            </BuildableReference>
+            <SelectedTests>
+               <Test Identifier = "CharactersUITests"/>
+            </SelectedTests>
          </TestableReference>
       </Testables>
    </TestAction>

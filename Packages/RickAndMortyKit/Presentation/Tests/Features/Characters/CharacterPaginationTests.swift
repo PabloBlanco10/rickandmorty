@@ -40,7 +40,7 @@ struct CharacterPaginationTests {
         #expect(fixture.ids == [1, 2])
         await fixture.viewModel.loadNextPage(approaching: 1)
         #expect(await fixture.repository.requests.count == 2)
-        #expect(await fixture.repository.requests.last == .init(query: "", page: 2, policy: .cacheFirst))
+        #expect(await fixture.repository.requests.last == .init(query: "", page: 2))
         await fixture.repository.succeed(ids: [2, 3], at: 1)
         await pagination.value
         #expect(fixture.ids == [1, 2, 3])

@@ -14,9 +14,8 @@ public struct SearchCharactersUseCase: Sendable {
 
     public func execute(
         query: String,
-        page: Int,
-        policy: FetchPolicy = .cacheFirst
+        page: Int
     ) async throws -> CharacterPage {
-        try await repository.searchCharacters(query: Self.normalizedQuery(query), page: page, policy: policy)
+        try await repository.searchCharacters(query: Self.normalizedQuery(query), page: page)
     }
 }

@@ -5,18 +5,6 @@ public struct CharactersView: View {
     private let viewModel: CharactersViewModel
     private let imageLoader: (any ImageLoader)?
 
-    public init(
-        viewModel: CharactersViewModel, imageLoader: any ImageLoader
-    ) {
-        self.viewModel = viewModel
-        self.imageLoader = imageLoader
-    }
-
-    init(viewModel: CharactersViewModel) {
-        self.viewModel = viewModel
-        imageLoader = nil
-    }
-
     public var body: some View {
         NavigationStack {
             searchContent
@@ -70,7 +58,7 @@ public struct CharactersView: View {
             ContentUnavailableView {
                 Label("Unable to load characters", systemImage: "exclamationmark.triangle")
             } description: {
-                Text(CharactersError(error).message)
+                Text(error.message)
             } actions: {
                 Button("Retry loading characters") {
                     Task {
@@ -122,6 +110,18 @@ public struct CharactersView: View {
                 Spacer()
             }
         }
+    }
+
+    public init(
+        viewModel: CharactersViewModel, imageLoader: any ImageLoader
+    ) {
+        self.viewModel = viewModel
+        self.imageLoader = imageLoader
+    }
+
+    init(viewModel: CharactersViewModel) {
+        self.viewModel = viewModel
+        imageLoader = nil
     }
 }
 

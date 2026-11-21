@@ -2,6 +2,12 @@ import Domain
 import Foundation
 import SwiftUI
 
+private struct PreviewCharacterRepository: CharacterRepository {
+    func searchCharacters(query _: String, page _: Int) async throws -> CharacterPage {
+        CharacterPage(characters: [], nextPage: nil)
+    }
+}
+
 @MainActor
 enum CharactersPreviewFixtures {
     static let character = Character(
@@ -16,11 +22,5 @@ enum CharactersPreviewFixtures {
             debounce: {}
         )
         return CharactersView(viewModel: viewModel)
-    }
-}
-
-private struct PreviewCharacterRepository: CharacterRepository {
-    func searchCharacters(query _: String, page _: Int, policy _: FetchPolicy) async throws -> CharacterPage {
-        CharacterPage(characters: [], nextPage: nil)
     }
 }

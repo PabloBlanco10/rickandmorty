@@ -2,6 +2,16 @@
 import Foundation
 import Testing
 
+private struct Payload: Decodable, Sendable {
+    let value: Int
+}
+
+private struct CancellingPayload: Decodable, Sendable {
+    init(from _: any Decoder) throws {
+        throw CancellationError()
+    }
+}
+
 struct HTTPClientTests {
     @Test
     func decodesGenericResponseAndBuildsUncachedGET() async throws {
@@ -124,15 +134,5 @@ struct HTTPClientTests {
         let client = HTTPClient(transport: URLSessionTransport(session: session))
         let result: Payload = try await client.get(from: APIResponseFixture.url())
         #expect(result.value == 42)
-    }
-}
-
-private struct Payload: Decodable, Sendable {
-    let value: Int
-}
-
-private struct CancellingPayload: Decodable, Sendable {
-    init(from _: any Decoder) throws {
-        throw CancellationError()
     }
 }

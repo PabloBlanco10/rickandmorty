@@ -6,17 +6,6 @@ struct SearchViewModelFixture {
     let repository = ControlledCharacterRepository()
     let viewModel: CharactersViewModel
 
-    init(debounce: @escaping @Sendable () async throws -> Void = {}) {
-        viewModel = CharactersViewModel(useCase: SearchCharactersUseCase(repository: repository), debounce: debounce)
-    }
-
-    func load(ids: [Int] = [1], nextPage: Int? = 2) async {
-        let task = Task { await viewModel.loadInitial() }
-        await repository.waitUntilRequested()
-        await repository.succeed(ids: ids, nextPage: nextPage)
-        await task.value
-    }
-
     var ids: [Int]? {
         guard case let .loaded(characters) = viewModel.state else {
             return nil
@@ -28,7 +17,7 @@ struct SearchViewModelFixture {
         guard case let .failed(error) = viewModel.state else {
             return nil
         }
-        return error as? CharactersError
+        return error
     }
 
     var isLoading: Bool {
@@ -36,5 +25,21 @@ struct SearchViewModelFixture {
             return true
         }
         return false
+    }
+
+    init(
+        announce: @escaping @MainActor (String) -> Void = { _ in },
+        debounce: @escaping @Sendable () async throws -> Void = {}
+    ) {
+        viewModel = CharactersViewModel(
+            useCase: SearchCharactersUseCase(repository: repository), announce: announce, debounce: debounce
+        )
+    }
+
+    func load(ids: [Int] = [1], nextPage: Int? = 2) async {
+        let task = Task { await viewModel.loadInitial() }
+        await repository.waitUntilRequested()
+        await repository.succeed(ids: ids, nextPage: nextPage)
+        await task.value
     }
 }

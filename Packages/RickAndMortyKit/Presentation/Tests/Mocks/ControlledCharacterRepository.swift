@@ -5,7 +5,6 @@ actor ControlledCharacterRepository: CharacterRepository {
     struct Request: Equatable, Sendable {
         let query: String
         let page: Int
-        let policy: FetchPolicy
     }
 
     private(set) var requests: [Request] = []
@@ -13,9 +12,9 @@ actor ControlledCharacterRepository: CharacterRepository {
     private var pending: [Int: CheckedContinuation<CharacterPage, any Error>] = [:]
     private var waiter: (count: Int, continuation: CheckedContinuation<Void, Never>)?
 
-    func searchCharacters(query: String, page: Int, policy: FetchPolicy) async throws -> CharacterPage {
+    func searchCharacters(query: String, page: Int) async throws -> CharacterPage {
         let index = requests.count
-        requests.append(Request(query: query, page: page, policy: policy))
+        requests.append(Request(query: query, page: page))
         defer {
             if Task.isCancelled {
                 cancelledRequests.insert(index)
